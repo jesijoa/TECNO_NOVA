@@ -1,0 +1,69 @@
+/* ================================================
+   TECNO NOVA - Paleta de colores institucional
+   GA6-220501096-AA3 | SENA ADSO Ficha 3235887
+   ================================================ */
+
+:root {
+  /* Colores principales (tomados del prototipo PDF) */
+  --color-primario: #1565C0;        /* Azul corporativo */
+  --color-primario-hover: #0D47A1;  /* Azul oscuro (hover) */
+  --color-primario-claro: #E3F2FD;  /* Azul muy claro (fondos) */
+
+  --color-confirmacion: #2E7D32;    /* Verde (Guardar, Confirmar pago) */
+  --color-confirmacion-hover: #1B5E20;
+
+  --color-error: #C62828;           /* Rojo (error, alerta) */
+  --color-error-claro: #FFEBEE;
+
+  --color-texto: #212121;           /* Texto principal */
+  --color-texto-secundario: #757575;/* Texto gris */
+  --color-fondo: #FFFFFF;           /* Fondo blanco */
+  --color-fondo-gris: #F5F5F5;      /* Fondo gris claro */
+
+  --color-borde: #E0E0E0;           /* Bordes de campos */
+  --color-borde-activo: #1565C0;    /* Borde al hacer foco */
+
+  --color-precio: #1565C0;          /* Precios en azul */
+  --color-estrellas: #FFC107;       /* Estrellas de calificación */
+  --color-envio-gratis: #2E7D32;    /* Etiqueta "Gratis" */
+
+  /* Tipografía */
+  --fuente-principal: 'Segoe UI', Arial, sans-serif;
+  --fuente-peso-normal: 400;
+  --fuente-peso-medio: 500;
+  --fuente-peso-negrita: 700;
+
+  /* Tamaños de texto */
+  --texto-xs: 11px;
+  --texto-sm: 13px;
+  --texto-base: 15px;
+  --texto-md: 17px;
+  --texto-lg: 20px;
+  --texto-xl: 24px;
+  --texto-titulo: 28px;
+
+  /* Espaciado */
+  --espacio-xs: 4px;
+  --espacio-sm: 8px;
+  --espacio-md: 16px;
+  --espacio-lg: 24px;
+  --espacio-xl: 32px;
+  --espacio-xxl: 48px;
+
+  /* Bordes redondeados */
+  --radio-sm: 6px;
+  --radio-md: 10px;
+  --radio-lg: 16px;
+  --radio-pill: 50px;
+  --radio-circulo: 50%;
+
+  /* Sombras */
+  --sombra-card: 0 2px 8px rgba(0,0,0,0.10);
+  --sombra-hover: 0 4px 16px rgba(21,101,192,0.18);
+
+  /* Transiciones */
+  --transicion: 0.22s ease;
+
+  /* Ancho máximo de la "pantalla móvil" */
+  --ancho-movil: 400px;
+}

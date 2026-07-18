@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TECNO NOVA · Tecnología para todos</title>
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+<body>
+
+  <!-- ==========================================
+       CONTENEDOR PRINCIPAL (simula pantalla móvil)
+       ========================================== -->
+  <div class="app-container">
+
+    <!-- ============================================================
+         PANTALLA 1: INICIO DE SESIÓN
+         ============================================================ -->
+    <div class="pantalla activa" id="pantalla-login">
+
+      <!-- Header -->
+      <header class="app-header">
+        <a class="header-marca" href="#" aria-label="Tecno Nova inicio">
+          <img src="logo.jpg" alt="Tecno Nova logo" class="header-logo" style="object-fit:contain; padding:3px; border-radius:6px;" />
+          <div class="header-textos">
+            <span class="header-nombre">TECNO NOVA</span>
+            <span class="header-slogan">Tecnología para todos</span>
+          </div>
+        </a>
+      </header>
+
+      <!-- Cuerpo -->
+      <main class="app-body" style="padding-top: 40px;">
+
+        <h1 class="seccion-titulo">Iniciar sesión</h1>
+        <p class="seccion-subtitulo">Bienvenida — ingresa tus datos</p>
+
+        <!-- Campo Correo -->
+        <div class="campo-grupo">
+          <label class="campo-label" for="login-email">Correo electrónico</label>
+          <input
+            class="campo-input"
+            type="email"
+            id="login-email"
+            placeholder="ejemplo@correo.com"
+            autocomplete="email"
+            aria-describedby="login-email-error"
+          />
+          <span class="campo-error-msg" id="login-email-error" role="alert"></span>
+        </div>
+
+        <!-- Campo Contraseña -->
+        <div class="campo-grupo">
+          <label class="campo-label" for="login-pass">Contraseña</label>
+          <input
+            class="campo-input"
+            type="password"
+            id="login-pass"
+            placeholder="••••••••••••"
+            autocomplete="current-password"
+            aria-describedby="login-pass-error"
+          />
+          <span class="campo-error-msg" id="login-pass-error" role="alert"></span>
+        </div>
+
+        <!-- Hint de prueba -->
+        <p style="font-size:11px; color:var(--color-texto-secundario); margin-bottom: 24px; text-align:center;">
+          💡 Prueba: <strong>jessica@correo.com</strong> / <strong>123456</strong>
+        </p>
+
+        <!-- Botón iniciar sesión -->
+        <button class="btn-primario" id="btn-login" type="button">
+          Iniciar sesión
+        </button>
+
+        <!-- Enlace registro -->
+        <p class="text-center mt-lg" style="font-size:14px; color:var(--color-texto-secundario);">
+          ¿No tienes cuenta?
+          <span class="enlace-texto" onclick="mostrarPantalla('pantalla-registro')" role="button" tabindex="0">
+            Registrarse
+          </span>
+        </p>
+
+      </main>
+    </div>
+    <!-- FIN PANTALLA LOGIN -->
+
+
+    <!-- ============================================================
+         PANTALLA 2: REGISTRO DE DATOS PERSONALES
+         ============================================================ -->
+    <div class="pantalla" id="pantalla-registro">
+
+      <header class="app-header">
+        <button class="header-icono-derecha" onclick="mostrarPantalla('pantalla-login')"
+                aria-label="Volver" style="font-size:20px; background:none; border:none; cursor:pointer;">
+          ←
+        </button>
+        <a class="header-marca" href="#" style="flex:1; justify-content:center;">
+          <img src="logo.jpg" alt="Tecno Nova logo" class="header-logo" style="object-fit:contain; padding:3px; border-radius:6px;" />
+          <div class="header-textos">
+            <span class="header-nombre">TECNO NOVA</span>
+            <span class="header-slogan">Tecnología para todos</span>
+          </div>
+        </a>
+        <div class="header-icono-derecha" style="font-size:22px;" aria-hidden="true">🪪</div>
+      </header>
+
+      <main class="app-body" style="padding-top:28px;">
+
+        <h1 class="seccion-titulo">Datos personales</h1>
+        <p class="seccion-subtitulo">Por favor completa tu información para continuar</p>
+
+        <form id="form-registro" novalidate>
+
+          <!-- Nombres -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="reg-nombres">Nombres</label>
+            <input class="campo-input" type="text" id="reg-nombres"
+                   placeholder="Jessica Joana"
+                   autocomplete="given-name"
+                   aria-describedby="reg-nombres-error" />
+            <span class="campo-error-msg" id="reg-nombres-error" role="alert"></span>
+          </div>
+
+          <!-- Apellidos -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="reg-apellidos">Apellidos</label>
+            <input class="campo-input" type="text" id="reg-apellidos"
+                   placeholder="Recalde Portilla"
+                   autocomplete="family-name"
+                   aria-describedby="reg-apellidos-error" />
+            <span class="campo-error-msg" id="reg-apellidos-error" role="alert"></span>
+          </div>
+
+          <!-- Cédula -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="reg-cedula">Cédula</label>
+            <input class="campo-input" type="text" id="reg-cedula"
+                   placeholder="11114563456"
+                   inputmode="numeric"
+                   aria-describedby="reg-cedula-error" />
+            <span class="campo-error-msg" id="reg-cedula-error" role="alert"></span>
+          </div>
+
+          <!-- Fecha de nacimiento -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="reg-fecha">Fecha de Nacimiento</label>
+            <input class="campo-input" type="text" id="reg-fecha"
+                   placeholder="dd/mm/aaaa"
+                   maxlength="10"
+                   inputmode="numeric"
+                   aria-describedby="reg-fecha-error" />
+            <span class="campo-error-msg" id="reg-fecha-error" role="alert"></span>
+          </div>
+
+          <!-- Correo electrónico -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="reg-correo">Correo electrónico</label>
+            <input class="campo-input" type="email" id="reg-correo"
+                   placeholder="ejemplo@correo.com"
+                   autocomplete="email"
+                   aria-describedby="reg-correo-error" />
+            <span class="campo-error-msg" id="reg-correo-error" role="alert"></span>
+          </div>
+
+          <!-- Contraseña -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="reg-contrasena">Contraseña</label>
+            <input class="campo-input" type="password" id="reg-contrasena"
+                   placeholder="Mínimo 6 caracteres"
+                   autocomplete="new-password"
+                   aria-describedby="reg-contrasena-error" />
+            <span class="campo-error-msg" id="reg-contrasena-error" role="alert"></span>
+          </div>
+
+          <!-- Confirmar contraseña -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="reg-confirmar">Confirmar contraseña</label>
+            <input class="campo-input" type="password" id="reg-confirmar"
+                   placeholder="Repite tu contraseña"
+                   autocomplete="new-password"
+                   aria-describedby="reg-confirmar-error" />
+            <span class="campo-error-msg" id="reg-confirmar-error" role="alert"></span>
+          </div>
+
+          <!-- Botones -->
+          <div style="display:flex; gap: 12px; margin-top: 28px;">
+            <button class="btn-secundario" type="button"
+                    onclick="mostrarPantalla('pantalla-login')"
+                    style="flex:1;">
+              Cancelar
+            </button>
+            <button class="btn-confirmar" type="button"
+                    id="btn-guardar-registro"
+                    style="flex:1;">
+              Guardar
+            </button>
+          </div>
+
+        </form>
+      </main>
+    </div>
+    <!-- FIN PANTALLA REGISTRO -->
+
+
+    <!-- ============================================================
+         PANTALLA 3: ERROR DE AUTENTICACIÓN
+         ============================================================ -->
+    <div class="pantalla" id="pantalla-error-auth">
+
+      <header class="app-header">
+        <a class="header-marca" href="#">
+          <img src="logo.jpg" alt="Tecno Nova logo" class="header-logo" style="object-fit:contain; padding:3px; border-radius:6px;" />
+          <div class="header-textos">
+            <span class="header-nombre">TECNO NOVA</span>
+            <span class="header-slogan">Tecnología para todos</span>
+          </div>
+        </a>
+      </header>
+
+      <main class="app-body" style="display:flex; flex-direction:column; align-items:center;
+                                     justify-content:center; text-align:center; flex:1; padding-top:40px;">
+
+        <!-- Icono de alerta -->
+        <div class="icono-alerta" role="img" aria-label="Error de autenticación">!</div>
+
+        <h2 style="font-size:var(--texto-xl); font-weight:var(--fuente-peso-negrita);
+                    margin-bottom:var(--espacio-md); color:var(--color-texto);">
+          ¡Ups! Algo salió mal
+        </h2>
+
+        <p style="font-size:var(--texto-base); color:var(--color-texto); line-height:1.6;
+                   max-width:260px; margin:0 auto var(--espacio-xl);">
+          El correo electrónico o la contraseña que ingresaste no son correctos.<br>
+          <strong>Por favor verifica tus datos e intenta nuevamente.</strong>
+        </p>
+
+        <!-- Botón reintentar -->
+        <button class="btn-error" type="button" onclick="mostrarPantalla('pantalla-login')"
+                style="margin-bottom:var(--espacio-lg);">
+          Intentar de nuevo
+        </button>
+
+        <!-- Enlace volver -->
+        <span class="enlace-texto" onclick="mostrarPantalla('pantalla-login')"
+              role="button" tabindex="0"
+              style="font-size:var(--texto-base); color:var(--color-texto);">
+          Volver al inicio de sesión
+        </span>
+
+      </main>
+    </div>
+    <!-- FIN PANTALLA ERROR -->
+
+
+    <!-- ============================================================
+         PANTALLA 4: CATÁLOGO DE PRODUCTOS
+         ============================================================ -->
+    <div class="pantalla" id="pantalla-catalogo">
+
+      <!-- Header con barra de búsqueda -->
+      <header class="app-header" style="flex-direction:column; align-items:stretch; gap:8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div class="header-marca">
+            <img src="logo.jpg" alt="Tecno Nova logo" class="header-logo" style="object-fit:contain; padding:3px; border-radius:6px;" />
+            <div class="header-textos">
+              <span class="header-nombre">TECNO NOVA</span>
+              <span class="header-slogan">Tecnología para todos</span>
+            </div>
+          </div>
+          <!-- Icono carrito con badge -->
+          <button style="position:relative; background:none; border:none; cursor:pointer; color:#fff; font-size:24px;"
+                  onclick="abrirCarrito()" aria-label="Abrir carrito">
+            🛒
+            <span id="carrito-badge"
+                  style="position:absolute; top:-4px; right:-4px; background:var(--color-error);
+                         color:#fff; border-radius:50%; width:18px; height:18px; font-size:11px;
+                         display:flex; align-items:center; justify-content:center;
+                         font-weight:bold; font-family:var(--fuente-principal);">
+              0
+            </span>
+          </button>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="barra-busqueda">
+          <span class="icono-busqueda" aria-hidden="true">🔍</span>
+          <input type="search" id="input-busqueda"
+                 placeholder="Buscar productos..."
+                 aria-label="Buscar productos" />
+        </div>
+      </header>
+
+      <!-- Cuerpo catálogo -->
+      <main class="app-body">
+
+        <!-- Categorías (chips) -->
+        <div class="categoria-titulo">Categorías</div>
+        <div class="chips-contenedor" role="group" aria-label="Filtrar por categoría">
+          <button class="chip activo" data-categoria="todas" type="button">Todas</button>
+          <button class="chip" data-categoria="portatiles" type="button">Portátiles</button>
+          <button class="chip" data-categoria="celulares" type="button">Celulares</button>
+          <button class="chip" data-categoria="accesorios" type="button">Accesorios</button>
+        </div>
+
+        <!-- Sección destacados -->
+        <div class="seccion-row mt-md">
+          <h2 class="seccion-row" style="font-size:var(--texto-md); font-weight:var(--fuente-peso-negrita);">
+            Destacados
+          </h2>
+          <span class="ver-todos" onclick="mostrarToast('Mostrando todos los productos...')"
+                role="button" tabindex="0">Ver todos</span>
+        </div>
+
+        <!-- Grid de productos -->
+        <div class="grid-productos" id="grid-productos" role="list">
+          <!-- Renderizado dinámicamente por JS -->
+        </div>
+
+      </main>
+
+      <!-- Barra navegación inferior -->
+      <nav class="nav-inferior" aria-label="Navegación principal">
+        <button class="nav-item activo" id="nav-inicio" type="button"
+                onclick="mostrarPantalla('pantalla-catalogo')"
+                aria-label="Inicio">
+          <span class="nav-icono" aria-hidden="true">🏠</span>
+          <span class="nav-etiqueta">Inicio</span>
+        </button>
+        <button class="nav-item" type="button"
+                onclick="document.getElementById('input-busqueda').focus(); mostrarPantalla('pantalla-catalogo');"
+                aria-label="Buscar">
+          <span class="nav-icono" aria-hidden="true">🔍</span>
+          <span class="nav-etiqueta">Buscar</span>
+        </button>
+        <button class="nav-item" id="nav-carrito" type="button"
+                onclick="abrirCarrito()"
+                aria-label="Carrito de compras" style="position:relative;">
+          <span class="nav-icono" aria-hidden="true">🛒</span>
+          <span class="nav-etiqueta">Carrito</span>
+        </button>
+        <button class="nav-item" id="nav-perfil" type="button"
+                onclick="mostrarPantalla('pantalla-perfil')"
+                aria-label="Perfil">
+          <span class="nav-icono" aria-hidden="true">👤</span>
+          <span class="nav-etiqueta">Perfil</span>
+        </button>
+      </nav>
+    </div>
+    <!-- FIN PANTALLA CATÁLOGO -->
+
+
+    <!-- ============================================================
+         PANTALLA 5: DETALLE DEL PRODUCTO
+         ============================================================ -->
+    <div class="pantalla" id="pantalla-detalle">
+
+      <header class="app-header" style="justify-content:space-between;">
+        <button style="background:none; border:none; cursor:pointer; color:#fff; font-size:22px;"
+                onclick="mostrarPantalla('pantalla-catalogo')" aria-label="Volver al catálogo">
+          ←
+        </button>
+        <span class="header-nombre">DETALLE DEL PRODUCTO</span>
+        <button style="background:none; border:none; cursor:pointer; color:#fff; font-size:22px;"
+                onclick="abrirCarrito()" aria-label="Ver carrito">
+          🛒
+        </button>
+      </header>
+
+      <main class="app-body" style="padding-top:20px;">
+
+        <!-- Imagen principal -->
+        <div style="background:var(--color-fondo-gris); border-radius:var(--radio-md);
+                     display:flex; align-items:center; justify-content:center;
+                     height:180px; font-size:80px; margin-bottom:var(--espacio-md);"
+             id="det-emoji" aria-hidden="true">
+          💻
+        </div>
+
+        <!-- Info del producto + complementario lado a lado -->
+        <div style="display:flex; gap:var(--espacio-md); align-items:flex-start;">
+
+          <!-- Info principal -->
+          <div style="flex:1; min-width:0;">
+            <h2 style="font-size:var(--texto-md); font-weight:var(--fuente-peso-negrita);
+                        margin-bottom:4px;" id="det-nombre">Portátil UltraBook 14"</h2>
+            <div class="estrellas" id="det-estrellas" aria-label="Calificación">★★★★☆</div>
+            <div class="card-precio" style="font-size:var(--texto-xl); margin-top:6px;"
+                 id="det-precio">$2.450.000</div>
+          </div>
+
+          <!-- Complementario -->
+          <div id="det-complementario"></div>
+
+        </div>
+
+        <!-- Especificaciones (se llenan dinámicamente desde JS según el producto) -->
+        <div class="separador"></div>
+        <h3 class="categoria-titulo" style="margin-top:0;">Especificaciones</h3>
+        <ul id="det-especificaciones"
+            style="list-style:none; font-size:var(--texto-sm); color:var(--color-texto-secundario);
+                   line-height:2;">
+          <!-- JS inserta los <li> aquí al abrir cada producto -->
+        </ul>
+
+        <!-- Selector de cantidad -->
+        <div class="separador"></div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h3 class="categoria-titulo" style="margin:0;">Cantidad</h3>
+          <span class="disponibilidad" id="det-disponible">12 unidades disponibles</span>
+        </div>
+        <div class="cantidad-control mt-sm">
+          <button class="cantidad-btn" id="btn-cant-menos" aria-label="Reducir cantidad">−</button>
+          <span class="cantidad-valor" id="det-cantidad">1</span>
+          <button class="cantidad-btn" id="btn-cant-mas" aria-label="Aumentar cantidad">+</button>
+        </div>
+
+        <!-- Botón añadir -->
+        <button class="btn-primario mt-lg" id="btn-anadir-carrito" type="button">
+          Añadir al carrito · $2.450.000
+        </button>
+
+        <!-- ============================================================
+             MÓDULO: RESEÑAS DE CLIENTES (CRUD con localStorage)
+             GA6-220501096-AA4-EV01
+             ============================================================ -->
+        <div class="separador"></div>
+
+        <h3 class="categoria-titulo" style="margin-top:0;">Reseñas de clientes</h3>
+
+        <!-- Resumen del promedio de calificación (se llena por JS) -->
+        <div id="resenas-resumen" class="resenas-resumen"></div>
+
+        <!-- Lista de reseñas existentes (se llena dinámicamente por JS) -->
+        <div id="lista-resenas"></div>
+
+        <!-- Formulario para crear / editar una reseña -->
+        <div class="separador"></div>
+        <h3 class="categoria-titulo">Escribe tu reseña</h3>
+
+        <form id="form-resena" novalidate>
+
+          <!-- Campo oculto: guarda el id de la reseña cuando se está editando -->
+          <input type="hidden" id="resena-editando-id" value="" />
+
+          <!-- Nombre de quien escribe -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="resena-nombre">Tu nombre</label>
+            <input class="campo-input" type="text" id="resena-nombre"
+                   placeholder="Ej: Jessica Recalde"
+                   aria-describedby="resena-nombre-error" />
+            <span class="campo-error-msg" id="resena-nombre-error" role="alert"></span>
+          </div>
+
+          <!-- Selector de calificación con estrellas -->
+          <div class="campo-grupo">
+            <label class="campo-label">Tu calificación</label>
+            <div class="selector-estrellas" id="selector-estrellas"
+                 role="radiogroup" aria-label="Selecciona una calificación de 1 a 5 estrellas">
+              <span class="estrella-sel" data-valor="1" role="radio" aria-label="1 estrella">★</span>
+              <span class="estrella-sel" data-valor="2" role="radio" aria-label="2 estrellas">★</span>
+              <span class="estrella-sel" data-valor="3" role="radio" aria-label="3 estrellas">★</span>
+              <span class="estrella-sel" data-valor="4" role="radio" aria-label="4 estrellas">★</span>
+              <span class="estrella-sel" data-valor="5" role="radio" aria-label="5 estrellas">★</span>
+            </div>
+            <span class="campo-error-msg" id="resena-estrellas-error" role="alert"></span>
+          </div>
+
+          <!-- Comentario -->
+          <div class="campo-grupo">
+            <label class="campo-label" for="resena-comentario">Tu comentario</label>
+            <textarea class="campo-input" id="resena-comentario" rows="3"
+                      placeholder="Cuéntanos qué te pareció el producto (mínimo 10 caracteres)..."
+                      aria-describedby="resena-comentario-error" style="resize:vertical;"></textarea>
+            <span class="campo-error-msg" id="resena-comentario-error" role="alert"></span>
+          </div>
+
+          <!-- Botones del formulario -->
+          <button class="btn-primario" type="button" id="btn-guardar-resena">
+            Publicar reseña
+          </button>
+          <button class="btn-secundario mt-sm" type="button"
+                  id="btn-cancelar-edicion-resena" style="display:none;">
+            Cancelar edición
+          </button>
+
+        </form>
+        <!-- FIN MÓDULO RESEÑAS -->
+
+      </main>
+    </div>
+    <!-- FIN PANTALLA DETALLE -->
+
+
+    <!-- ============================================================
+         PANTALLA 6: CARRITO DE COMPRAS
+         ============================================================ -->
+    <div class="pantalla" id="pantalla-carrito">
+
+      <header class="app-header" style="justify-content:space-between; align-items:center;">
+        <button style="background:none; border:none; cursor:pointer; color:#fff; font-size:22px;"
+                onclick="mostrarPantalla('pantalla-catalogo')" aria-label="Volver">
+          ←
+        </button>
+        <div style="display:flex; align-items:center; gap:var(--espacio-sm);">
+          <span class="header-nombre">Mi Carrito</span>
+          <span style="font-size:var(--texto-sm); color:rgba(255,255,255,0.85);" id="carrito-contador">0 ítems</span>
+        </div>
+        <div style="width:34px;"></div>
+      </header>
+
+      <main class="app-body">
+
+        <!-- Lista de ítems -->
+        <div id="lista-carrito">
+          <!-- Renderizado dinámicamente -->
+        </div>
+
+        <div class="separador"></div>
+
+        <!-- Resumen de costos -->
+        <div class="resumen-fila">
+          <span>Subtotal</span>
+          <span id="resumen-subtotal">$0</span>
+        </div>
+        <div class="resumen-fila">
+          <span>Envío</span>
+          <span class="valor-gratis">Gratis</span>
+        </div>
+        <div class="resumen-fila descuento" id="resumen-descuento-fila" style="display:none;">
+          <span id="resumen-descuento-label">Descuento</span>
+          <span class="valor-descuento" id="resumen-descuento">-$0</span>
+        </div>
+        <div class="resumen-fila">
+          <span>IVA (19%)</span>
+          <span id="resumen-iva">$0</span>
+        </div>
+        <div class="resumen-fila total">
+          <span>Total</span>
+          <span class="valor-total" id="resumen-total">$0</span>
+        </div>
+
+        <!-- Campo de cupón -->
+        <div class="cupon-contenedor" id="cupon-contenedor">
+          <span class="cupon-icono" aria-hidden="true">🔒</span>
+          <input class="cupon-input" type="text" id="input-cupon"
+                 placeholder="Código de descuento"
+                 aria-label="Código de descuento" />
+          <button class="btn-aplicar" type="button" id="btn-aplicar-cupon">Aplicar</button>
+        </div>
+        <p class="cupon-mensaje" id="cupon-mensaje"></p>
+        <p style="font-size:11px; color:var(--color-texto-secundario); text-align:center; margin-bottom:var(--espacio-md); margin-top:-8px;">
+          💡 Prueba el código: <strong>SENA2026</strong> (15% de descuento)
+        </p>
+
+        <!-- Botón continuar pago -->
+        <button class="btn-confirmar" type="button" onclick="irAPago()">
+          Continuar pago
+        </button>
+
+      </main>
+    </div>
+    <!-- FIN PANTALLA CARRITO -->
+
+
+    <!-- ============================================================
+         PANTALLA 7: FINALIZAR COMPRA (ENVÍO Y PAGO)
+         ============================================================ -->
+    <div class="pantalla" id="pantalla-pago">
+
+      <header class="app-header" style="justify-content:space-between;">
+        <button style="background:none; border:none; cursor:pointer; color:#fff; font-size:22px;"
+                onclick="mostrarPantalla('pantalla-carrito'); renderizarCarrito();"
+                aria-label="Volver al carrito">
+          ←
+        </button>
+        <span class="header-nombre">Finalizar Compra</span>
+        <div style="width:34px;"></div>
+      </header>
+
+      <!-- Stepper de progreso -->
+      <div class="stepper" role="progressbar" aria-label="Paso 2 de 3: Envío y pago">
+        <div class="step completado">
+          <div class="step-circulo">✓</div>
+          <span class="step-label">Carrito</span>
+        </div>
+        <div class="step-linea completada"></div>
+        <div class="step activo">
+          <div class="step-circulo">2</div>
+          <span class="step-label">Envío y pago</span>
+        </div>
+        <div class="step-linea"></div>
+        <div class="step">
+          <div class="step-circulo">3</div>
+          <span class="step-label">Confirmación</span>
+        </div>
+      </div>
+
+      <main class="app-body">
+
+        <!-- Dirección de envío -->
+        <h3 class="categoria-titulo">Dirección de envío</h3>
+        <div class="tarjeta-direccion">
+          <div>
+            <div class="dir-nombre">Jessica Joana Recalde Portilla</div>
+            <div class="dir-detalles">
+              Cra 8 #12-45 Barrio Santa Ana<br>
+              Candelaria, Valle del Cauca
+            </div>
+          </div>
+          <button class="btn-cambiar" type="button"
+                  onclick="mostrarToast('Función de dirección en desarrollo...')">
+            Cambiar
+          </button>
+        </div>
+
+        <!-- Método de pago -->
+        <h3 class="categoria-titulo">Método de Pago</h3>
+
+        <div class="radio-opcion seleccionado" id="opcion-tarjeta"
+             onclick="seleccionarMetodoPago('tarjeta')">
+          <input type="radio" name="pago" value="tarjeta" checked aria-label="Tarjeta de crédito/débito" />
+          <div class="radio-icono-pago pago-tarjeta" aria-hidden="true">💳</div>
+          <div class="radio-info">
+            <div class="radio-nombre">Tarjeta de crédito/débito</div>
+            <div class="radio-desc">Visa, Mastercard</div>
+          </div>
+        </div>
+
+        <div class="radio-opcion" id="opcion-pse"
+             onclick="seleccionarMetodoPago('pse')">
+          <input type="radio" name="pago" value="pse" aria-label="PSE" />
+          <div class="radio-icono-pago pago-pse" aria-hidden="true">🏦</div>
+          <div class="radio-info">
+            <div class="radio-nombre">PSE</div>
+            <div class="radio-desc">Pago desde tu banco</div>
+          </div>
+        </div>
+
+        <div class="radio-opcion" id="opcion-contra"
+             onclick="seleccionarMetodoPago('contra')">
+          <input type="radio" name="pago" value="contra" aria-label="Pago contraentrega" />
+          <div class="radio-icono-pago pago-contra" aria-hidden="true">📦</div>
+          <div class="radio-info">
+            <div class="radio-nombre">Pago contraentrega</div>
+            <div class="radio-desc">Paga al recibir tu pedido</div>
+          </div>
+        </div>
+
+        <!-- Resumen del pedido -->
+        <div class="separador"></div>
+        <h3 class="categoria-titulo">Resumen del pedido</h3>
+
+        <div class="resumen-fila">
+          <span id="pago-n-productos">Productos (0)</span>
+          <span id="pago-productos">$0</span>
+        </div>
+        <div class="resumen-fila">
+          <span>Envío</span>
+          <span class="valor-gratis">Gratis</span>
+        </div>
+        <div class="resumen-fila descuento" id="pago-descuento-fila" style="display:none;">
+          <span id="pago-descuento-label">Descuento</span>
+          <span class="valor-descuento" id="pago-descuento">-$0</span>
+        </div>
+        <div class="resumen-fila">
+          <span>IVA (19%)</span>
+          <span id="pago-iva">$0</span>
+        </div>
+        <div class="resumen-fila total">
+          <span>Total a pagar</span>
+          <span class="valor-total" id="pago-total">$0</span>
+        </div>
+
+        <!-- Botón confirmar pago -->
+        <button class="btn-confirmar mt-md" type="button" id="btn-confirmar-pago">
+          🔒 Confirmar pago
+        </button>
+
+      </main>
+    </div>
+    <!-- FIN PANTALLA PAGO -->
+
+
+    <!-- ============================================================
+         PANTALLA 8: PERFIL DE USUARIO
+         GA6-220501096-AA3
+         ============================================================ -->
+    <div class="pantalla" id="pantalla-perfil">
+
+      <header class="app-header">
+        <a class="header-marca" href="#">
+          <img src="logo.jpg" alt="Tecno Nova logo" class="header-logo" style="object-fit:contain; padding:3px; border-radius:6px;" />
+          <div class="header-textos">
+            <span class="header-nombre">TECNO NOVA</span>
+            <span class="header-slogan">Tecnología para todos</span>
+          </div>
+        </a>
+      </header>
+
+      <main class="app-body">
+
+        <h1 class="seccion-titulo">Mi Perfil</h1>
+        <p class="seccion-subtitulo">Gestiona tus datos, fotos y compras</p>
+
+        <!-- Avatar -->
+        <div class="perfil-avatar-wrap">
+          <div class="perfil-avatar-circulo">
+            <div class="perfil-avatar-img" id="perfil-avatar-img">JR</div>
+            <div class="perfil-avatar-editar" id="perfil-avatar-editar"
+                 role="button" tabindex="0" aria-label="Cambiar foto de perfil">📷</div>
+            <input type="file" id="perfil-avatar-input" accept="image/*" style="display:none;" />
+          </div>
+          <div class="perfil-nombre-completo" id="perfil-nombre-completo">Jessica Recalde</div>
+          <div class="perfil-correo-texto" id="perfil-correo-texto">correo@ejemplo.com</div>
+        </div>
+
+        <!-- Sección: Datos personales -->
+        <div class="perfil-seccion" id="perfil-seccion-datos">
+          <div class="perfil-seccion-cabecera" data-toggle="perfil-seccion-datos">
+            <div class="perfil-seccion-icono" aria-hidden="true">🪪</div>
+            <div class="perfil-seccion-titulo">Datos personales</div>
+            <div class="perfil-seccion-flecha">▶</div>
+          </div>
+          <div class="perfil-seccion-cuerpo">
+            <form id="form-perfil" novalidate>
+              <div class="campo-grupo">
+                <label class="campo-label" for="perfil-nombres">Nombres</label>
+                <input class="campo-input" type="text" id="perfil-nombres" aria-describedby="perfil-nombres-error" />
+                <span class="campo-error-msg" id="perfil-nombres-error" role="alert"></span>
+              </div>
+              <div class="campo-grupo">
+                <label class="campo-label" for="perfil-apellidos">Apellidos</label>
+                <input class="campo-input" type="text" id="perfil-apellidos" aria-describedby="perfil-apellidos-error" />
+                <span class="campo-error-msg" id="perfil-apellidos-error" role="alert"></span>
+              </div>
+              <div class="campo-grupo">
+                <label class="campo-label" for="perfil-cedula">Cédula</label>
+                <input class="campo-input" type="text" id="perfil-cedula" inputmode="numeric" aria-describedby="perfil-cedula-error" />
+                <span class="campo-error-msg" id="perfil-cedula-error" role="alert"></span>
+              </div>
+              <div class="campo-grupo">
+                <label class="campo-label" for="perfil-fecha">Fecha de nacimiento</label>
+                <input class="campo-input" type="text" id="perfil-fecha" maxlength="10" inputmode="numeric" aria-describedby="perfil-fecha-error" />
+                <span class="campo-error-msg" id="perfil-fecha-error" role="alert"></span>
+              </div>
+              <div class="campo-grupo">
+                <label class="campo-label" for="perfil-correo-input">Correo electrónico</label>
+                <input class="campo-input" type="email" id="perfil-correo-input" aria-describedby="perfil-correo-input-error" />
+                <span class="campo-error-msg" id="perfil-correo-input-error" role="alert"></span>
+              </div>
+              <button class="btn-confirmar" type="button" id="btn-guardar-perfil">Guardar cambios</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sección: Historial de compras -->
+        <div class="perfil-seccion abierta" id="perfil-seccion-historial">
+          <div class="perfil-seccion-cabecera" data-toggle="perfil-seccion-historial">
+            <div class="perfil-seccion-icono" aria-hidden="true">🧾</div>
+            <div class="perfil-seccion-titulo">Historial de compras</div>
+            <div class="perfil-seccion-flecha">▶</div>
+          </div>
+          <div class="perfil-seccion-cuerpo">
+            <div id="lista-historial">
+              <!-- Renderizado dinámicamente por JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Cerrar sesión -->
+        <button class="btn-cerrar-sesion" type="button" id="btn-cerrar-sesion">
+          Cerrar sesión
+        </button>
+
+      </main>
+
+      <!-- Barra navegación inferior -->
+      <nav class="nav-inferior" aria-label="Navegación principal">
+        <button class="nav-item" type="button"
+                onclick="mostrarPantalla('pantalla-catalogo')"
+                aria-label="Inicio">
+          <span class="nav-icono" aria-hidden="true">🏠</span>
+          <span class="nav-etiqueta">Inicio</span>
+        </button>
+        <button class="nav-item" type="button"
+                onclick="document.getElementById('input-busqueda').focus(); mostrarPantalla('pantalla-catalogo');"
+                aria-label="Buscar">
+          <span class="nav-icono" aria-hidden="true">🔍</span>
+          <span class="nav-etiqueta">Buscar</span>
+        </button>
+        <button class="nav-item" type="button"
+                onclick="abrirCarrito()"
+                aria-label="Carrito de compras">
+          <span class="nav-icono" aria-hidden="true">🛒</span>
+          <span class="nav-etiqueta">Carrito</span>
+        </button>
+        <button class="nav-item activo" id="nav-perfil-2" type="button"
+                onclick="mostrarPantalla('pantalla-perfil')"
+                aria-label="Perfil">
+          <span class="nav-icono" aria-hidden="true">👤</span>
+          <span class="nav-etiqueta">Perfil</span>
+        </button>
+      </nav>
+    </div>
+    <!-- FIN PANTALLA PERFIL -->
+
+  </div>
+  <!-- FIN app-container -->
+
+  <!-- Toast de notificación -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Script principal -->
+  <script src="js/app.js"></script>
+
+  <!-- Función auxiliar para abrir carrito (necesita renderizar) -->
+  <script>
+    function abrirCarrito() {
+      renderizarCarrito();
+      mostrarPantalla('pantalla-carrito');
+    }
+  </script>
+
+</body>
+</html>

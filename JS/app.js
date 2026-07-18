@@ -1,0 +1,1817 @@
+/* ================================================
+   TECNO NOVA - Validaciones e interacciones JS
+   GA6-220501096-AA3 | SENA ADSO Ficha 3235887
+   ================================================ */
+
+'use strict';
+
+/* =============================================
+   1. NAVEGACIÓN ENTRE PANTALLAS
+   ============================================= */
+
+/**
+ * Muestra una pantalla y oculta todas las demás.
+ * @param {string} id - ID de la pantalla a mostrar (sin el prefijo #)
+ */
+function mostrarPantalla(id) {
+  // Ocultar todas las pantallas
+  document.querySelectorAll('.pantalla').forEach(p => {
+    p.classList.remove('activa');
+  });
+
+  // Mostrar la seleccionada
+  const pantalla = document.getElementById(id);
+  if (pantalla) {
+    pantalla.classList.add('activa');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Actualizar barra de navegación inferior
+  actualizarNavInferior(id);
+
+  // Si se navega al perfil, refrescar sus datos con lo guardado en localStorage
+  if (id === 'pantalla-perfil') {
+    renderPerfil();
+  }
+}
+
+/**
+ * Marca el ítem activo en la barra de navegación inferior.
+ * @param {string} pantallaId
+ */
+function actualizarNavInferior(pantallaId) {
+  const mapa = {
+    'pantalla-catalogo': 'nav-inicio',
+    'pantalla-detalle':  'nav-inicio',
+    'pantalla-carrito':  'nav-carrito',
+    'pantalla-perfil':   'nav-perfil',
+  };
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('activo');
+  });
+
+  const navId = mapa[pantallaId];
+  if (navId) {
+    const navItem = document.getElementById(navId);
+    if (navItem) navItem.classList.add('activo');
+  }
+}
+
+
+/* =============================================
+   2. VALIDACIONES DE FORMULARIOS
+   ============================================= */
+
+/**
+ * Muestra un mensaje de error bajo un campo.
+ * @param {string} campoId - ID del input
+ * @param {string} msg     - Mensaje de error
+ */
+function mostrarError(campoId, msg) {
+  const input = document.getElementById(campoId);
+  const errorEl = document.getElementById(campoId + '-error');
+  if (input)   input.classList.add('error');
+  if (errorEl) { errorEl.textContent = msg; errorEl.classList.add('visible'); }
+}
+
+/**
+ * Limpia el error de un campo.
+ * @param {string} campoId
+ */
+function limpiarError(campoId) {
+  const input = document.getElementById(campoId);
+  const errorEl = document.getElementById(campoId + '-error');
+  if (input)   input.classList.remove('error');
+  if (errorEl) errorEl.classList.remove('visible');
+}
+
+/** Valida que un correo electrónico tenga formato correcto. */
+function validarEmail(email) {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email.trim());
+}
+
+/** Valida que una contraseña tenga al menos 6 caracteres. */
+function validarContrasena(pass) {
+  return pass.trim().length >= 6;
+}
+
+/** Valida que un campo de texto no esté vacío. */
+function validarNoVacio(valor) {
+  return valor.trim().length > 0;
+}
+
+/** Valida que la cédula solo tenga números y al menos 6 dígitos. */
+function validarCedula(cedula) {
+  const regex = /^\d{6,12}$/;
+  return regex.test(cedula.trim());
+}
+
+/** Valida una fecha en formato dd/mm/aaaa. */
+function validarFecha(fecha) {
+  const regex = /^\d{2}\/\d{2}\/\d{4}$/;
+  if (!regex.test(fecha)) return false;
+  const [dia, mes, anio] = fecha.split('/').map(Number);
+  const hoy = new Date();
+  const fechaObj = new Date(anio, mes - 1, dia);
+  return fechaObj <= hoy && anio > 1900 && mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31;
+}
+
+
+/* =============================================
+   3. USUARIOS Y SESIÓN (CRUD en localStorage)
+   ============================================= */
+
+const USUARIOS_STORAGE_KEY = 'tecnonova_usuarios';
+const SESION_STORAGE_KEY   = 'tecnonova_sesion';
+
+/** Cuenta de prueba precargada, para que el profesor pueda entrar sin registrarse. */
+const USUARIO_DEMO = {
+  nombres: 'Jessica',
+  apellidos: 'Recalde Portilla',
+  cedula: '1114563456',
+  fecha: '15/03/2001',
+  correo: 'jessica@correo.com',
+  contrasena: '123456',
+  avatar: null
+};
+
+/** (READ) Lee todos los usuarios registrados desde localStorage. */
+function leerUsuarios() {
+  try {
+    const datos = localStorage.getItem(USUARIOS_STORAGE_KEY);
+    return datos ? JSON.parse(datos) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** (UPDATE/CREATE) Guarda el arreglo completo de usuarios en localStorage. */
+function guardarUsuarios(usuarios) {
+  localStorage.setItem(USUARIOS_STORAGE_KEY, JSON.stringify(usuarios));
+}
+
+/** Busca un usuario registrado (o el demo) por su correo. */
+function buscarUsuarioPorCorreo(correo) {
+  correo = correo.trim().toLowerCase();
+  if (correo === USUARIO_DEMO.correo.toLowerCase()) return USUARIO_DEMO;
+  return leerUsuarios().find(u => u.correo.toLowerCase() === correo) || null;
+}
+
+/** Guarda el correo de la sesión activa. */
+function iniciarSesion(correo) {
+  localStorage.setItem(SESION_STORAGE_KEY, correo.trim().toLowerCase());
+}
+
+/** Cierra la sesión activa. */
+function cerrarSesion() {
+  localStorage.removeItem(SESION_STORAGE_KEY);
+  carrito = [];
+  actualizarContadorCarrito();
+  mostrarPantalla('pantalla-login');
+  mostrarToast('Sesión cerrada. ¡Hasta pronto! 👋');
+}
+
+/** Devuelve el objeto del usuario que tiene la sesión abierta (o null). */
+function obtenerUsuarioActual() {
+  const correo = localStorage.getItem(SESION_STORAGE_KEY);
+  if (!correo) return null;
+  return buscarUsuarioPorCorreo(correo);
+}
+
+/**
+ * Maneja el envío del formulario de inicio de sesión.
+ */
+function manejarLogin() {
+  const email     = document.getElementById('login-email').value;
+  const contrasena = document.getElementById('login-pass').value;
+  let valido = true;
+
+  // Limpiar errores previos
+  limpiarError('login-email');
+  limpiarError('login-pass');
+
+  // Validar email
+  if (!validarNoVacio(email)) {
+    mostrarError('login-email', 'El correo electrónico es obligatorio.');
+    valido = false;
+  } else if (!validarEmail(email)) {
+    mostrarError('login-email', 'Escribe un correo electrónico válido (ej: nombre@correo.com).');
+    valido = false;
+  }
+
+  // Validar contraseña
+  if (!validarNoVacio(contrasena)) {
+    mostrarError('login-pass', 'La contraseña es obligatoria.');
+    valido = false;
+  } else if (!validarContrasena(contrasena)) {
+    mostrarError('login-pass', 'La contraseña debe tener al menos 6 caracteres.');
+    valido = false;
+  }
+
+  if (!valido) return;
+
+  // Simular carga
+  const btn = document.getElementById('btn-login');
+  btn.innerHTML = '<span class="spinner"></span> Verificando...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    // Verificar credenciales contra la cuenta demo y contra los usuarios registrados
+    const usuario = buscarUsuarioPorCorreo(email);
+
+    if (usuario && usuario.contrasena === contrasena) {
+      iniciarSesion(usuario.correo);
+      mostrarPantalla('pantalla-catalogo');
+      mostrarToast(`¡Bienvenida, ${usuario.nombres}! 🎉`);
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-pass').value  = '';
+    } else {
+      mostrarPantalla('pantalla-error-auth');
+    }
+    btn.innerHTML = 'Iniciar sesión';
+    btn.disabled = false;
+  }, 1200);
+}
+
+
+/* =============================================
+   4. FORMULARIO DE REGISTRO
+   ============================================= */
+
+/**
+ * Maneja el envío del formulario de registro de datos personales.
+ */
+function manejarRegistro() {
+  const nombres    = document.getElementById('reg-nombres').value;
+  const apellidos  = document.getElementById('reg-apellidos').value;
+  const cedula     = document.getElementById('reg-cedula').value;
+  const fecha      = document.getElementById('reg-fecha').value;
+  const correo     = document.getElementById('reg-correo').value;
+  const contrasena = document.getElementById('reg-contrasena').value;
+  const confirmar  = document.getElementById('reg-confirmar').value;
+  let valido = true;
+
+  // Limpiar errores
+  ['reg-nombres','reg-apellidos','reg-cedula','reg-fecha','reg-correo','reg-contrasena','reg-confirmar']
+    .forEach(limpiarError);
+
+  if (!validarNoVacio(nombres)) {
+    mostrarError('reg-nombres', 'Los nombres son obligatorios.');
+    valido = false;
+  } else if (nombres.trim().length < 2) {
+    mostrarError('reg-nombres', 'El nombre debe tener al menos 2 caracteres.');
+    valido = false;
+  }
+
+  if (!validarNoVacio(apellidos)) {
+    mostrarError('reg-apellidos', 'Los apellidos son obligatorios.');
+    valido = false;
+  } else if (apellidos.trim().length < 2) {
+    mostrarError('reg-apellidos', 'Los apellidos deben tener al menos 2 caracteres.');
+    valido = false;
+  }
+
+  if (!validarNoVacio(cedula)) {
+    mostrarError('reg-cedula', 'El número de cédula es obligatorio.');
+    valido = false;
+  } else if (!validarCedula(cedula)) {
+    mostrarError('reg-cedula', 'Ingresa un número de cédula válido (solo dígitos, mínimo 6).');
+    valido = false;
+  }
+
+  if (!validarNoVacio(fecha)) {
+    mostrarError('reg-fecha', 'La fecha de nacimiento es obligatoria.');
+    valido = false;
+  } else if (!validarFecha(fecha)) {
+    mostrarError('reg-fecha', 'Usa el formato dd/mm/aaaa y asegúrate de que sea una fecha real.');
+    valido = false;
+  }
+
+  // Validar correo (obligatorio, formato válido y no repetido)
+  if (!validarNoVacio(correo)) {
+    mostrarError('reg-correo', 'El correo electrónico es obligatorio.');
+    valido = false;
+  } else if (!validarEmail(correo)) {
+    mostrarError('reg-correo', 'Escribe un correo electrónico válido.');
+    valido = false;
+  } else if (buscarUsuarioPorCorreo(correo)) {
+    mostrarError('reg-correo', 'Ya existe una cuenta registrada con este correo.');
+    valido = false;
+  }
+
+  // Validar contraseña
+  if (!validarNoVacio(contrasena)) {
+    mostrarError('reg-contrasena', 'La contraseña es obligatoria.');
+    valido = false;
+  } else if (!validarContrasena(contrasena)) {
+    mostrarError('reg-contrasena', 'La contraseña debe tener al menos 6 caracteres.');
+    valido = false;
+  }
+
+  // Validar confirmación de contraseña
+  if (!validarNoVacio(confirmar)) {
+    mostrarError('reg-confirmar', 'Debes confirmar tu contraseña.');
+    valido = false;
+  } else if (confirmar !== contrasena) {
+    mostrarError('reg-confirmar', 'Las contraseñas no coinciden.');
+    valido = false;
+  }
+
+  if (!valido) return;
+
+  // Guardar exitosamente
+  const btn = document.getElementById('btn-guardar-registro');
+  btn.innerHTML = '<span class="spinner"></span> Guardando...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    // CREATE: agrega el nuevo usuario al almacenamiento local
+    const usuarios = leerUsuarios();
+    usuarios.push({
+      nombres: nombres.trim(),
+      apellidos: apellidos.trim(),
+      cedula: cedula.trim(),
+      fecha: fecha.trim(),
+      correo: correo.trim().toLowerCase(),
+      contrasena: contrasena,
+      avatar: null
+    });
+    guardarUsuarios(usuarios);
+
+    mostrarToast('¡Cuenta creada correctamente! Ahora inicia sesión ✅');
+    mostrarPantalla('pantalla-login');
+    btn.innerHTML = 'Guardar';
+    btn.disabled = false;
+
+    // Precargar el correo en el login para comodidad de la persona
+    document.getElementById('login-email').value = correo.trim().toLowerCase();
+
+    // Limpiar formulario
+    document.getElementById('form-registro').reset();
+  }, 1000);
+}
+
+/**
+ * Formatea la fecha automáticamente mientras el usuario escribe (dd/mm/aaaa).
+ * @param {HTMLInputElement} input
+ */
+function formatearFecha(input) {
+  let val = input.value.replace(/\D/g, '');
+  if (val.length > 2) val = val.slice(0,2) + '/' + val.slice(2);
+  if (val.length > 5) val = val.slice(0,5) + '/' + val.slice(5,9);
+  input.value = val;
+}
+
+
+/* =============================================
+   5. CATÁLOGO DE PRODUCTOS
+   ============================================= */
+
+/** Datos de productos (simulados según los mockups del PDF) */
+const PRODUCTOS = [
+
+  /* ── PORTÁTILES ─────────────────────────────── */
+  {
+    id: 1,
+    nombre: 'Portátil UltraBook 14"',
+    specs: '8GB RAM · 256GB SSD',
+    precio: 2450000,
+    emoji: '💻',
+    categoria: 'portatiles',
+    estrellas: 4,
+    disponible: 12,
+    complementario: 7,           // Mouse inalámbrico
+    especificaciones: [
+      'Procesador Intel Core i5 12va Gen',
+      '8GB RAM DDR4 · 256GB SSD NVMe',
+      'Pantalla 14" Full HD IPS antirreflejo',
+      'Batería hasta 10 horas de uso',
+      'Sistema operativo Windows 11 Home'
+    ]
+  },
+  {
+    id: 2,
+    nombre: 'Portátil ProBook 15.6"',
+    specs: '16GB RAM · 512GB SSD',
+    precio: 3890000,
+    emoji: '💻',
+    categoria: 'portatiles',
+    estrellas: 5,
+    disponible: 7,
+    complementario: 7,
+    especificaciones: [
+      'Procesador Intel Core i7 13va Gen',
+      '16GB RAM DDR5 · 512GB SSD NVMe',
+      'Pantalla 15.6" Full HD IPS 144Hz',
+      'Tarjeta gráfica NVIDIA RTX 3050',
+      'Batería hasta 8 horas · USB-C carga rápida'
+    ]
+  },
+  {
+    id: 3,
+    nombre: 'Portátil SlimBook Air 13"',
+    specs: '8GB RAM · 256GB SSD · 1.2 kg',
+    precio: 1980000,
+    emoji: '💻',
+    categoria: 'portatiles',
+    estrellas: 4,
+    disponible: 15,
+    complementario: 7,
+    especificaciones: [
+      'Procesador AMD Ryzen 5 7000 Series',
+      '8GB RAM LPDDR5 · 256GB SSD M.2',
+      'Pantalla 13.3" Full HD IPS',
+      'Ultra delgado 1.2 kg · chasis aluminio',
+      'Batería hasta 12 horas · Wi-Fi 6'
+    ]
+  },
+
+  /* ── CELULARES ───────────────────────────────── */
+  {
+    id: 4,
+    nombre: 'Smartphone Nova X20',
+    specs: '128GB · Cámara 50MP',
+    precio: 1180000,
+    emoji: '📱',
+    categoria: 'celulares',
+    estrellas: 5,
+    disponible: 8,
+    complementario: 6,           // Audífonos BassPro
+    especificaciones: [
+      'Pantalla AMOLED 6.5" · 120Hz',
+      'Procesador Snapdragon 695 · 6GB RAM',
+      'Almacenamiento 128GB UFS 2.2',
+      'Cámara principal 50MP + 8MP ultra gran angular',
+      'Batería 5000mAh con carga rápida 33W'
+    ]
+  },
+  {
+    id: 5,
+    nombre: 'Smartphone ProMax Z50',
+    specs: '256GB · Pantalla 6.7" AMOLED',
+    precio: 2100000,
+    emoji: '📱',
+    categoria: 'celulares',
+    estrellas: 5,
+    disponible: 5,
+    complementario: 6,
+    especificaciones: [
+      'Pantalla Super AMOLED 6.7" · 144Hz',
+      'Procesador Dimensity 9000 · 12GB RAM',
+      'Almacenamiento 256GB UFS 3.1',
+      'Cámara 108MP + 12MP + 5MP con zoom óptico 10x',
+      'Batería 5500mAh · carga inalámbrica 15W'
+    ]
+  },
+  {
+    id: 6,
+    nombre: 'Smartphone LitePhone Go',
+    specs: '64GB · Doble SIM · 4G',
+    precio: 620000,
+    emoji: '📱',
+    categoria: 'celulares',
+    estrellas: 3,
+    disponible: 20,
+    complementario: null,
+    especificaciones: [
+      'Pantalla IPS LCD 6.1" HD+',
+      'Procesador Helio G85 · 4GB RAM',
+      'Almacenamiento 64GB expandible microSD',
+      'Cámara 13MP + flash LED · frontal 5MP',
+      'Batería 4000mAh · Doble SIM 4G LTE'
+    ]
+  },
+
+  /* ── ACCESORIOS ──────────────────────────────── */
+  {
+    id: 7,
+    nombre: 'Audífonos BassPro',
+    specs: 'Bluetooth 5.3 · ANC',
+    precio: 180000,
+    emoji: '🎧',
+    categoria: 'accesorios',
+    estrellas: 4,
+    disponible: 25,
+    complementario: null,
+    especificaciones: [
+      'Bluetooth 5.3 · alcance hasta 10 metros',
+      'Cancelación activa de ruido (ANC)',
+      'Autonomía 30 horas con estuche de carga',
+      'Drivers de 40mm · respuesta 20Hz–20kHz',
+      'Plegables · incluye cable auxiliar 3.5mm'
+    ]
+  },
+  {
+    id: 8,
+    nombre: 'Monitor Curvo 27"',
+    specs: '144Hz · 2K QHD',
+    precio: 980000,
+    emoji: '🖥️',
+    categoria: 'accesorios',
+    estrellas: 5,
+    disponible: 5,
+    complementario: 7,
+    especificaciones: [
+      'Panel VA curvo 1800R · resolución 2560×1440 QHD',
+      'Tasa de refresco 144Hz · 1ms tiempo de respuesta',
+      'Compatibilidad FreeSync Premium / G-Sync',
+      'Conectividad: 2× HDMI 2.0 + 1× DisplayPort 1.4',
+      'Regulable en altura · modo sin parpadeo'
+    ]
+  },
+  {
+    id: 9,
+    nombre: 'Mouse Inalámbrico Silent',
+    specs: 'Silencioso · 2400 DPI · USB',
+    precio: 75000,
+    emoji: '🖱️',
+    categoria: 'accesorios',
+    estrellas: 4,
+    disponible: 30,
+    complementario: null,
+    especificaciones: [
+      'Sensor óptico 800–2400 DPI ajustable',
+      'Conexión inalámbrica 2.4GHz · receptor nano USB',
+      'Clic silencioso · hasta 80% menos ruido',
+      'Autonomía 18 meses con 1 pila AA',
+      'Compatible con Windows, Mac y Linux'
+    ]
+  },
+  {
+    id: 10,
+    nombre: 'Teclado Mecánico RGB',
+    specs: 'Switches Blue · TKL · USB-C',
+    precio: 320000,
+    emoji: '⌨️',
+    categoria: 'accesorios',
+    estrellas: 4,
+    disponible: 10,
+    complementario: 9,           // Mouse Silent
+    especificaciones: [
+      'Switches mecánicos Blue (táctil y auditivo)',
+      'Formato TKL (tenkeyless) · 87 teclas',
+      'Retroiluminación RGB por tecla, 16M colores',
+      'Cable USB-C desmontable · anti-ghosting completo',
+      'Marco de aluminio · compatible Win / Mac'
+    ]
+  }
+];
+
+let categoriaActual = 'todas';
+let productoActual  = null;
+let carrito         = [];
+
+/* =============================================
+   5.1 ÍCONOS VECTORIALES DE PRODUCTOS
+   Reemplazan los emojis por ilustraciones propias
+   (funcionan sin conexión y se ven en cualquier
+   dispositivo exactamente igual).
+   ============================================= */
+
+/** Colección de íconos SVG en línea, uno por tipo de producto. */
+const ICONOS_SVG = {
+  laptop: `
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="14" width="44" height="28" rx="3" fill="#CFE3FB" stroke="#1565C0" stroke-width="2.5"/>
+      <rect x="15" y="19" width="34" height="18" rx="1.5" fill="#1565C0"/>
+      <path d="M4 46h56l-4 6H8l-4-6z" fill="#1565C0"/>
+      <rect x="26" y="46" width="12" height="2.5" fill="#E3F2FD"/>
+    </svg>`,
+  celular: `
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="19" y="6" width="26" height="52" rx="5" fill="#CFE3FB" stroke="#1565C0" stroke-width="2.5"/>
+      <rect x="23" y="12" width="18" height="34" rx="1.5" fill="#1565C0"/>
+      <circle cx="32" cy="51" r="2.6" fill="#1565C0"/>
+    </svg>`,
+  audifonos: `
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 34v-2a18 18 0 0 1 36 0v2" stroke="#1565C0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="9" y="32" width="12" height="18" rx="5" fill="#1565C0"/>
+      <rect x="43" y="32" width="12" height="18" rx="5" fill="#1565C0"/>
+      <rect x="12" y="36" width="6" height="10" rx="2" fill="#E3F2FD"/>
+      <rect x="46" y="36" width="6" height="10" rx="2" fill="#E3F2FD"/>
+    </svg>`,
+  monitor: `
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="10" width="48" height="32" rx="3" fill="#CFE3FB" stroke="#1565C0" stroke-width="2.5"/>
+      <rect x="13" y="15" width="38" height="22" fill="#1565C0"/>
+      <rect x="27" y="42" width="10" height="8" fill="#1565C0"/>
+      <rect x="19" y="50" width="26" height="4" rx="2" fill="#1565C0"/>
+    </svg>`,
+  mouse: `
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="10" width="24" height="40" rx="12" fill="#CFE3FB" stroke="#1565C0" stroke-width="2.5"/>
+      <line x1="32" y1="10" x2="32" y2="26" stroke="#1565C0" stroke-width="2.5"/>
+    </svg>`,
+  teclado: `
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="18" width="52" height="28" rx="4" fill="#CFE3FB" stroke="#1565C0" stroke-width="2.5"/>
+      <g fill="#1565C0">
+        <rect x="12" y="24" width="6" height="5" rx="1"/>
+        <rect x="21" y="24" width="6" height="5" rx="1"/>
+        <rect x="30" y="24" width="6" height="5" rx="1"/>
+        <rect x="39" y="24" width="6" height="5" rx="1"/>
+        <rect x="48" y="24" width="4" height="5" rx="1"/>
+        <rect x="12" y="32" width="6" height="5" rx="1"/>
+        <rect x="21" y="32" width="6" height="5" rx="1"/>
+        <rect x="30" y="32" width="6" height="5" rx="1"/>
+        <rect x="39" y="32" width="6" height="5" rx="1"/>
+        <rect x="21" y="39" width="24" height="4.5" rx="1.5"/>
+      </g>
+    </svg>`
+};
+
+/**
+ * Determina qué ícono corresponde a un producto según su nombre
+ * (más preciso) o, en su defecto, según su categoría.
+ * @param {Object} p - producto
+ * @returns {string} - markup SVG listo para insertar
+ */
+function obtenerIconoProducto(p) {
+  const nombre = (p.nombre || '').toLowerCase();
+  if (nombre.includes('audíf') || nombre.includes('audif')) return ICONOS_SVG.audifonos;
+  if (nombre.includes('monitor'))                            return ICONOS_SVG.monitor;
+  if (nombre.includes('mouse'))                               return ICONOS_SVG.mouse;
+  if (nombre.includes('teclado'))                             return ICONOS_SVG.teclado;
+  if (p.categoria === 'portatiles')                           return ICONOS_SVG.laptop;
+  if (p.categoria === 'celulares')                             return ICONOS_SVG.celular;
+  return ICONOS_SVG.laptop;
+}
+
+/**
+ * Formatea un número como precio colombiano (ej: $2.450.000).
+ * @param {number} num
+ * @returns {string}
+ */
+function formatPrecio(num) {
+  return '$' + num.toLocaleString('es-CO');
+}
+
+/**
+ * Genera las estrellas de calificación en HTML.
+ * @param {number} n - cantidad de estrellas llenas (máx 5)
+ * @returns {string}
+ */
+function generarEstrellas(n) {
+  return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+
+/**
+ * Filtra y renderiza las tarjetas de productos según categoría activa.
+ */
+function renderizarProductos() {
+  const grid = document.getElementById('grid-productos');
+  if (!grid) return;
+
+  const filtrados = categoriaActual === 'todas'
+    ? PRODUCTOS
+    : PRODUCTOS.filter(p => p.categoria === categoriaActual);
+
+  grid.innerHTML = filtrados.map(p => `
+    <div class="card-producto" onclick="abrirDetalle(${p.id})">
+      <div class="card-img">
+        ${obtenerIconoProducto(p)}
+      </div>
+      <div class="card-nombre">${p.nombre}</div>
+      <div class="card-specs">${p.specs}</div>
+      <div class="card-precio">${formatPrecio(p.precio)}</div>
+      <button class="card-btn-mas" onclick="event.stopPropagation(); agregarAlCarrito(${p.id})"
+              title="Agregar al carrito" aria-label="Agregar ${p.nombre} al carrito">+</button>
+    </div>
+  `).join('');
+}
+
+/**
+ * Cambia la categoría activa y re-renderiza.
+ * @param {string} categoria
+ */
+function filtrarCategoria(categoria) {
+  categoriaActual = categoria;
+
+  // Actualizar chip activo
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.classList.toggle('activo', chip.dataset.categoria === categoria);
+  });
+
+  renderizarProductos();
+}
+
+
+/* =============================================
+   6. DETALLE DEL PRODUCTO
+   ============================================= */
+
+let cantidadDetalle = 1;
+
+/**
+ * Abre la pantalla de detalle con los datos del producto seleccionado.
+ * @param {number} id
+ */
+function abrirDetalle(id) {
+  productoActual = PRODUCTOS.find(p => p.id === id);
+  if (!productoActual) return;
+
+  cantidadDetalle = 1;
+
+  // Rellenar datos en pantalla
+  document.getElementById('det-emoji').innerHTML       = obtenerIconoProducto(productoActual);
+  document.getElementById('det-nombre').textContent    = productoActual.nombre;
+  document.getElementById('det-estrellas').textContent = generarEstrellas(productoActual.estrellas);
+  document.getElementById('det-precio').textContent    = formatPrecio(productoActual.precio);
+  document.getElementById('det-disponible').textContent = productoActual.disponible + ' unidades disponibles';
+  document.getElementById('det-cantidad').textContent  = cantidadDetalle;
+
+  // ── Especificaciones: se leen del objeto del producto ──
+  const listaSpecs = document.getElementById('det-especificaciones');
+  if (listaSpecs && productoActual.especificaciones) {
+    listaSpecs.innerHTML = productoActual.especificaciones
+      .map(spec => `<li>• ${spec}</li>`)
+      .join('');
+  }
+
+  // Precio del botón
+  actualizarPrecioBotonDetalle();
+
+  // Producto complementario
+  const compId = productoActual.complementario;
+  const comp = compId ? PRODUCTOS.find(p => p.id === compId) : null;
+  const compContenedor = document.getElementById('det-complementario');
+  if (comp) {
+    compContenedor.innerHTML = `
+      <div class="card-producto" style="width:130px; flex-shrink:0;" onclick="abrirDetalle(${comp.id})">
+        <div class="card-img" style="height:56px;">${obtenerIconoProducto(comp)}</div>
+        <div class="card-nombre" style="font-size:11px;">${comp.nombre}</div>
+        <div class="card-specs">${comp.specs}</div>
+        <div class="card-precio" style="font-size:13px;">${formatPrecio(comp.precio)}</div>
+        <button class="card-btn-mas" style="width:26px;height:26px;font-size:16px;"
+          onclick="event.stopPropagation(); agregarAlCarrito(${comp.id})" aria-label="Agregar complementario">+</button>
+      </div>`;
+    compContenedor.style.display = 'block';
+  } else {
+    compContenedor.style.display = 'none';
+  }
+
+  // Cargar y mostrar las reseñas guardadas de este producto
+  resetearFormularioResena();
+  renderizarResenas(productoActual.id);
+
+  mostrarPantalla('pantalla-detalle');
+}
+
+/**
+ * Actualiza el texto del botón "Añadir al carrito" con la cantidad y precio actuales.
+ */
+function actualizarPrecioBotonDetalle() {
+  if (!productoActual) return;
+  const total = productoActual.precio * cantidadDetalle;
+  const btn   = document.getElementById('btn-anadir-carrito');
+  if (btn) btn.textContent = `Añadir al carrito · ${formatPrecio(total)}`;
+}
+
+/**
+ * Cambia la cantidad en el detalle del producto.
+ * @param {number} delta - +1 o -1
+ */
+function cambiarCantidad(delta) {
+  if (!productoActual) return;
+  cantidadDetalle = Math.max(1, Math.min(cantidadDetalle + delta, productoActual.disponible));
+  document.getElementById('det-cantidad').textContent = cantidadDetalle;
+  actualizarPrecioBotonDetalle();
+}
+
+
+/* =============================================
+   6.5 RESEÑAS DE CLIENTES (CRUD con localStorage)
+   GA6-220501096-AA4-EV01
+   ============================================= */
+
+/** Llave usada para guardar las reseñas en el almacenamiento local del navegador */
+const RESENAS_STORAGE_KEY = 'tecnonova_resenas';
+
+/** Guarda en qué estrella (1 a 5) está el usuario mientras llena el formulario */
+let estrellasSeleccionadas = 0;
+
+/**
+ * (READ) Lee todas las reseñas guardadas en localStorage.
+ * Si todavía no hay ninguna, devuelve un arreglo vacío.
+ * @returns {Array}
+ */
+function obtenerResenas() {
+  try {
+    const datos = localStorage.getItem(RESENAS_STORAGE_KEY);
+    return datos ? JSON.parse(datos) : [];
+  } catch (error) {
+    console.error('Error al leer las reseñas guardadas:', error);
+    return [];
+  }
+}
+
+/**
+ * Guarda el arreglo completo de reseñas en localStorage.
+ * @param {Array} resenas
+ */
+function guardarResenasEnStorage(resenas) {
+  localStorage.setItem(RESENAS_STORAGE_KEY, JSON.stringify(resenas));
+}
+
+/**
+ * (READ) Devuelve solo las reseñas de un producto específico,
+ * ordenadas de la más reciente a la más antigua.
+ * @param {number} productoId
+ * @returns {Array}
+ */
+function obtenerResenasDeProducto(productoId) {
+  return obtenerResenas()
+    .filter(r => r.productoId === productoId)
+    .sort((a, b) => b.fechaMs - a.fechaMs);
+}
+
+/**
+ * Calcula el promedio de calificación de un producto según sus reseñas.
+ * @param {number} productoId
+ * @returns {number} Promedio redondeado a 1 decimal (0 si no tiene reseñas)
+ */
+function calcularPromedioResenas(productoId) {
+  const resenas = obtenerResenasDeProducto(productoId);
+  if (resenas.length === 0) return 0;
+  const suma = resenas.reduce((acc, r) => acc + r.calificacion, 0);
+  return Math.round((suma / resenas.length) * 10) / 10;
+}
+
+/**
+ * Actualiza visualmente cuántas estrellas quedan "encendidas" en el
+ * selector del formulario, según el valor elegido por el usuario.
+ * @param {number} valor - de 1 a 5
+ */
+function seleccionarEstrellaFormulario(valor) {
+  estrellasSeleccionadas = valor;
+  document.querySelectorAll('#selector-estrellas .estrella-sel').forEach(el => {
+    const esActiva = Number(el.dataset.valor) <= valor;
+    el.classList.toggle('activa', esActiva);
+  });
+  limpiarError('resena-estrellas');
+}
+
+/**
+ * (VALIDACIÓN) Revisa que el formulario de reseña esté correctamente
+ * diligenciado antes de guardar. Aplica las reglas de negocio del módulo.
+ * @returns {boolean} true si todo es válido
+ */
+function validarFormularioResena() {
+  const nombre     = document.getElementById('resena-nombre').value;
+  const comentario = document.getElementById('resena-comentario').value;
+  let valido = true;
+
+  limpiarError('resena-nombre');
+  limpiarError('resena-comentario');
+  document.getElementById('resena-estrellas-error').classList.remove('visible');
+
+  // Regla: el nombre es obligatorio y debe tener mínimo 3 caracteres
+  if (!validarNoVacio(nombre)) {
+    mostrarError('resena-nombre', 'Escribe tu nombre para publicar la reseña.');
+    valido = false;
+  } else if (nombre.trim().length < 3) {
+    mostrarError('resena-nombre', 'El nombre debe tener al menos 3 caracteres.');
+    valido = false;
+  }
+
+  // Regla: se debe seleccionar una calificación de 1 a 5 estrellas
+  if (estrellasSeleccionadas < 1) {
+    const errEl = document.getElementById('resena-estrellas-error');
+    errEl.textContent = 'Selecciona al menos 1 estrella.';
+    errEl.classList.add('visible');
+    valido = false;
+  }
+
+  // Regla: el comentario es obligatorio, entre 10 y 300 caracteres
+  if (!validarNoVacio(comentario)) {
+    mostrarError('resena-comentario', 'Escribe un comentario sobre el producto.');
+    valido = false;
+  } else if (comentario.trim().length < 10) {
+    mostrarError('resena-comentario', 'El comentario debe tener al menos 10 caracteres.');
+    valido = false;
+  } else if (comentario.trim().length > 300) {
+    mostrarError('resena-comentario', 'El comentario no puede superar los 300 caracteres.');
+    valido = false;
+  }
+
+  return valido;
+}
+
+/**
+ * (CREATE / UPDATE) Guarda una reseña nueva o actualiza una existente,
+ * según si el formulario está en modo "editar" o no.
+ */
+function guardarResena() {
+  if (!productoActual) return;
+  if (!validarFormularioResena()) return;
+
+  const nombre     = document.getElementById('resena-nombre').value.trim();
+  const comentario = document.getElementById('resena-comentario').value.trim();
+  const idEditando = document.getElementById('resena-editando-id').value;
+
+  const resenas = obtenerResenas();
+
+  if (idEditando) {
+    // ---- UPDATE: actualizar una reseña ya existente ----
+    const idx = resenas.findIndex(r => r.id === idEditando);
+    if (idx !== -1) {
+      resenas[idx].nombre       = nombre;
+      resenas[idx].calificacion = estrellasSeleccionadas;
+      resenas[idx].comentario   = comentario;
+      resenas[idx].editado      = true;
+    }
+    guardarResenasEnStorage(resenas);
+    mostrarToast('¡Reseña actualizada! ✏️');
+  } else {
+    // Regla de negocio: evitar que la misma persona publique
+    // dos reseñas para el mismo producto (debe editar la existente).
+    const yaExiste = resenas.some(r =>
+      r.productoId === productoActual.id &&
+      r.nombre.toLowerCase() === nombre.toLowerCase()
+    );
+    if (yaExiste) {
+      mostrarError('resena-nombre', 'Ya escribiste una reseña para este producto. Puedes editarla abajo.');
+      return;
+    }
+
+    // ---- CREATE: crear una nueva reseña ----
+    resenas.push({
+      id: 'resena-' + Date.now(),
+      productoId: productoActual.id,
+      nombre: nombre,
+      calificacion: estrellasSeleccionadas,
+      comentario: comentario,
+      fechaMs: Date.now(),
+      editado: false
+    });
+    guardarResenasEnStorage(resenas);
+    mostrarToast('¡Gracias por tu reseña! 🎉');
+  }
+
+  resetearFormularioResena();
+  renderizarResenas(productoActual.id);
+}
+
+/**
+ * (UPDATE - paso 1) Carga los datos de una reseña existente en el
+ * formulario para que el usuario pueda modificarla.
+ * @param {string} id
+ */
+function editarResena(id) {
+  const resena = obtenerResenas().find(r => r.id === id);
+  if (!resena) return;
+
+  document.getElementById('resena-editando-id').value = resena.id;
+  document.getElementById('resena-nombre').value = resena.nombre;
+  document.getElementById('resena-comentario').value = resena.comentario;
+  seleccionarEstrellaFormulario(resena.calificacion);
+
+  document.getElementById('btn-guardar-resena').textContent = 'Guardar cambios';
+  document.getElementById('btn-cancelar-edicion-resena').style.display = 'flex';
+
+  document.getElementById('form-resena').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/**
+ * (DELETE) Elimina una reseña, previa confirmación del usuario.
+ * @param {string} id
+ */
+function eliminarResena(id) {
+  const confirmar = window.confirm('¿Seguro que deseas eliminar esta reseña? Esta acción no se puede deshacer.');
+  if (!confirmar) return;
+
+  const resenas = obtenerResenas().filter(r => r.id !== id);
+  guardarResenasEnStorage(resenas);
+  mostrarToast('Reseña eliminada 🗑️');
+
+  resetearFormularioResena();
+  if (productoActual) renderizarResenas(productoActual.id);
+}
+
+/**
+ * Regresa el formulario de reseña a su estado inicial (modo "crear nueva").
+ */
+function resetearFormularioResena() {
+  document.getElementById('form-resena').reset();
+  document.getElementById('resena-editando-id').value = '';
+  document.getElementById('btn-guardar-resena').textContent = 'Publicar reseña';
+  document.getElementById('btn-cancelar-edicion-resena').style.display = 'none';
+  seleccionarEstrellaFormulario(0);
+  ['resena-nombre', 'resena-comentario'].forEach(limpiarError);
+  document.getElementById('resena-estrellas-error').classList.remove('visible');
+}
+
+/**
+ * Convierte los milisegundos guardados en una fecha legible (dd/mm/aaaa).
+ * @param {number} ms
+ * @returns {string}
+ */
+function formatearFechaResena(ms) {
+  const f = new Date(ms);
+  const dd = String(f.getDate()).padStart(2, '0');
+  const mm = String(f.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${f.getFullYear()}`;
+}
+
+/**
+ * (READ + actualización dinámica de la interfaz) Dibuja en pantalla el
+ * resumen del promedio y la lista completa de reseñas de un producto.
+ * @param {number} productoId
+ */
+function renderizarResenas(productoId) {
+  const resenas   = obtenerResenasDeProducto(productoId);
+  const resumenEl = document.getElementById('resenas-resumen');
+  const listaEl   = document.getElementById('lista-resenas');
+  if (!resumenEl || !listaEl) return;
+
+  // ---- Resumen del promedio ----
+  if (resenas.length === 0) {
+    resumenEl.innerHTML = `
+      <div class="resenas-vacio" style="width:100%;">
+        Este producto todavía no tiene reseñas. ¡Sé el primero en opinar!
+      </div>`;
+  } else {
+    const promedio = calcularPromedioResenas(productoId);
+    resumenEl.innerHTML = `
+      <div class="resenas-promedio-num">${promedio}</div>
+      <div class="resenas-promedio-detalle">
+        <span class="estrellas">${generarEstrellas(Math.round(promedio))}</span>
+        <span class="resenas-promedio-cantidad">
+          ${resenas.length} ${resenas.length === 1 ? 'reseña' : 'reseñas'}
+        </span>
+      </div>`;
+  }
+
+  // ---- Lista de reseñas ----
+  if (resenas.length === 0) {
+    listaEl.innerHTML = '';
+    return;
+  }
+
+  listaEl.innerHTML = resenas.map(r => `
+    <div class="card-resena">
+      <div class="resena-header">
+        <div class="resena-autor-info">
+          <span class="resena-autor">${r.nombre}</span>
+          <span class="estrellas" style="font-size:13px;">${generarEstrellas(r.calificacion)}</span>
+        </div>
+        <div class="resena-acciones">
+          <span class="resena-fecha">${formatearFechaResena(r.fechaMs)}${r.editado ? ' · editada' : ''}</span>
+          <button class="btn-icono-resena editar" title="Editar reseña"
+                  aria-label="Editar reseña de ${r.nombre}"
+                  onclick="editarResena('${r.id}')">✏️</button>
+          <button class="btn-icono-resena eliminar" title="Eliminar reseña"
+                  aria-label="Eliminar reseña de ${r.nombre}"
+                  onclick="eliminarResena('${r.id}')">🗑️</button>
+        </div>
+      </div>
+      <p class="resena-comentario">${r.comentario}</p>
+    </div>
+  `).join('');
+}
+
+
+/* =============================================
+   7. CARRITO DE COMPRAS
+   ============================================= */
+
+/**
+ * Agrega un producto al carrito (desde tarjeta o desde detalle).
+ * @param {number} id
+ * @param {number} [cantidad=1]
+ */
+function agregarAlCarrito(id, cantidad) {
+  cantidad = cantidad || 1;
+  const producto = PRODUCTOS.find(p => p.id === id);
+  if (!producto) return;
+
+  const item = carrito.find(c => c.id === id);
+  if (item) {
+    item.cantidad += cantidad;
+  } else {
+    carrito.push({ ...producto, cantidad });
+  }
+
+  actualizarContadorCarrito();
+  mostrarToast(`${producto.nombre} añadido al carrito 🛒`);
+}
+
+/**
+ * Agrega el producto actual desde la pantalla de detalle.
+ */
+function anadirDesdeDetalle() {
+  if (!productoActual) return;
+  agregarAlCarrito(productoActual.id, cantidadDetalle);
+  mostrarPantalla('pantalla-carrito');
+  renderizarCarrito();
+}
+
+/**
+ * Actualiza el contador de ítems en el ícono de carrito de la nav inferior.
+ */
+function actualizarContadorCarrito() {
+  const total = carrito.reduce((acc, c) => acc + c.cantidad, 0);
+  const badge = document.getElementById('carrito-badge');
+  if (badge) {
+    badge.textContent = total;
+    badge.style.display = total > 0 ? 'flex' : 'none';
+  }
+}
+
+/**
+ * Calcula subtotal, descuento, IVA y total del carrito,
+ * teniendo en cuenta el cupón aplicado (si lo hay).
+ * @returns {{subtotal:number, descuento:number, baseConDescuento:number, iva:number, total:number}}
+ */
+function calcularTotalesCarrito() {
+  const subtotal = carrito.reduce((acc, c) => acc + c.precio * c.cantidad, 0);
+  const descuento = cuponAplicado ? Math.round(subtotal * cuponAplicado.porcentaje / 100) : 0;
+  const baseConDescuento = subtotal - descuento;
+  const iva   = Math.round(baseConDescuento * 0.19);
+  const total = baseConDescuento + iva;
+  return { subtotal, descuento, baseConDescuento, iva, total };
+}
+
+/**
+ * Renderiza los ítems del carrito y el resumen de costos.
+ */
+function renderizarCarrito() {
+  const lista = document.getElementById('lista-carrito');
+  if (!lista) return;
+
+  if (carrito.length === 0) {
+    lista.innerHTML = `
+      <div style="text-align:center; padding: 40px 0; color: var(--color-texto-secundario);">
+        <div style="font-size:48px; margin-bottom:12px;">🛒</div>
+        <p>Tu carrito está vacío.</p>
+        <p style="font-size:13px; margin-top:6px;">Explora el catálogo y agrega productos.</p>
+      </div>`;
+  } else {
+    lista.innerHTML = carrito.map(item => `
+      <div class="card-producto" style="flex-direction:row; align-items:center; gap:12px; margin-bottom:10px;">
+        <div class="card-img" style="width:52px; height:52px; min-width:52px;">${obtenerIconoProducto(item)}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="card-nombre">${item.nombre}</div>
+          <div class="card-specs">${item.specs}</div>
+          <div class="card-precio">${formatPrecio(item.precio * item.cantidad)}</div>
+        </div>
+        <div class="cantidad-control">
+          <button class="cantidad-btn" onclick="cambiarCantidadCarrito(${item.id}, -1)" aria-label="Reducir cantidad">−</button>
+          <span class="cantidad-valor">${item.cantidad}</span>
+          <button class="cantidad-btn" onclick="cambiarCantidadCarrito(${item.id}, 1)" aria-label="Aumentar cantidad">+</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Calcular totales (incluye el cupón, si está aplicado)
+  const { subtotal, descuento, iva, total } = calcularTotalesCarrito();
+
+  const elems = {
+    'resumen-subtotal': formatPrecio(subtotal),
+    'resumen-iva':      formatPrecio(iva),
+    'resumen-total':    formatPrecio(total),
+    'carrito-contador': carrito.reduce((a,c) => a+c.cantidad, 0) + ' ítems'
+  };
+
+  Object.entries(elems).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  });
+
+  // Fila de descuento: solo visible si hay un cupón válido aplicado
+  const filaDescuento = document.getElementById('resumen-descuento-fila');
+  if (filaDescuento) {
+    if (cuponAplicado) {
+      filaDescuento.style.display = 'flex';
+      document.getElementById('resumen-descuento-label').textContent =
+        `Descuento (${cuponAplicado.codigo} · ${cuponAplicado.porcentaje}%)`;
+      document.getElementById('resumen-descuento').textContent = '-' + formatPrecio(descuento);
+    } else {
+      filaDescuento.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Cambia la cantidad de un ítem en el carrito.
+ * @param {number} id
+ * @param {number} delta
+ */
+function cambiarCantidadCarrito(id, delta) {
+  const idx  = carrito.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  carrito[idx].cantidad += delta;
+  if (carrito[idx].cantidad <= 0) carrito.splice(idx, 1);
+  actualizarContadorCarrito();
+  renderizarCarrito();
+}
+
+/* =============================================
+   7.1 CUPÓN DE DESCUENTO (validación real)
+   ============================================= */
+
+/** Códigos de descuento vigentes. Solo SENA2026 (15%) está activo. */
+const CUPONES_VALIDOS = { 'SENA2026': 15 };
+
+/** Cupón actualmente aplicado al carrito, o null si no hay ninguno. */
+let cuponAplicado = null;
+
+/**
+ * Valida el código de cupón ingresado y, si es correcto,
+ * aplica el descuento real al carrito ANTES de continuar al pago.
+ */
+function aplicarCupon() {
+  const input      = document.getElementById('input-cupon');
+  const contenedor = document.getElementById('cupon-contenedor');
+  const mensaje    = document.getElementById('cupon-mensaje');
+  const codigo     = input ? input.value.trim().toUpperCase() : '';
+
+  if (!codigo) {
+    mensaje.textContent = 'Escribe un código de descuento primero.';
+    mensaje.className = 'cupon-mensaje error';
+    return;
+  }
+
+  if (carrito.length === 0) {
+    mensaje.textContent = 'Agrega productos al carrito antes de aplicar un cupón.';
+    mensaje.className = 'cupon-mensaje error';
+    return;
+  }
+
+  if (CUPONES_VALIDOS[codigo]) {
+    cuponAplicado = { codigo, porcentaje: CUPONES_VALIDOS[codigo] };
+    contenedor.classList.add('cupon-valido');
+    mensaje.textContent = `¡Código válido! Descuento del ${cuponAplicado.porcentaje}% aplicado. 🎉`;
+    mensaje.className = 'cupon-mensaje exito';
+    mostrarToast(`Cupón ${codigo} aplicado correctamente`);
+  } else {
+    cuponAplicado = null;
+    contenedor.classList.remove('cupon-valido');
+    mensaje.textContent = 'Código no válido. Intenta con SENA2026.';
+    mensaje.className = 'cupon-mensaje error';
+  }
+
+  renderizarCarrito();
+}
+
+
+/* =============================================
+   8. PANTALLA DE PAGO
+   ============================================= */
+
+/**
+ * Pasa a la pantalla de finalizar compra con el resumen actualizado
+ * (incluye el descuento del cupón, ya validado en el carrito).
+ */
+function irAPago() {
+  if (carrito.length === 0) {
+    mostrarToast('Agrega productos al carrito primero.');
+    return;
+  }
+
+  const { subtotal, descuento, iva, total } = calcularTotalesCarrito();
+
+  const el = (id) => document.getElementById(id);
+  if (el('pago-productos')) el('pago-productos').textContent = formatPrecio(subtotal);
+  if (el('pago-iva'))       el('pago-iva').textContent       = formatPrecio(iva);
+  if (el('pago-total'))     el('pago-total').textContent     = formatPrecio(total);
+  if (el('pago-n-productos')) {
+    el('pago-n-productos').textContent = 'Productos (' + carrito.reduce((a,c)=>a+c.cantidad,0) + ')';
+  }
+
+  const filaDescuentoPago = el('pago-descuento-fila');
+  if (filaDescuentoPago) {
+    if (cuponAplicado) {
+      filaDescuentoPago.style.display = 'flex';
+      el('pago-descuento-label').textContent = `Descuento (${cuponAplicado.codigo} · ${cuponAplicado.porcentaje}%)`;
+      el('pago-descuento').textContent = '-' + formatPrecio(descuento);
+    } else {
+      filaDescuentoPago.style.display = 'none';
+    }
+  }
+
+  mostrarPantalla('pantalla-pago');
+}
+
+/** Estado del método de pago seleccionado */
+let metodoPago = 'tarjeta';
+
+/**
+ * Selecciona el método de pago.
+ * @param {string} metodo
+ */
+function seleccionarMetodoPago(metodo) {
+  metodoPago = metodo;
+
+  document.querySelectorAll('.radio-opcion').forEach(el => {
+    el.classList.remove('seleccionado');
+  });
+
+  const target = document.getElementById('opcion-' + metodo);
+  if (target) target.classList.add('seleccionado');
+
+  document.querySelectorAll('.radio-opcion input[type="radio"]').forEach(r => {
+    r.checked = r.value === metodo;
+  });
+}
+
+/**
+ * Confirma el pago (simulado) y guarda el pedido en el
+ * historial de compras del usuario que tiene la sesión abierta.
+ */
+function confirmarPago() {
+  const btn = document.getElementById('btn-confirmar-pago');
+  btn.innerHTML = '<span class="spinner"></span> Procesando...';
+  btn.disabled = true;
+
+  const { total } = calcularTotalesCarrito();
+  const copiaCarrito = carrito.map(c => ({ nombre: c.nombre, cantidad: c.cantidad, precio: c.precio }));
+  const cuponUsado = cuponAplicado ? cuponAplicado.codigo : null;
+
+  setTimeout(() => {
+    guardarPedidoEnHistorial(copiaCarrito, total, metodoPago, cuponUsado);
+
+    carrito = [];
+    cuponAplicado = null;
+    const inputCupon = document.getElementById('input-cupon');
+    if (inputCupon) inputCupon.value = '';
+    const cuponMsg = document.getElementById('cupon-mensaje');
+    if (cuponMsg) cuponMsg.textContent = '';
+    const cuponCont = document.getElementById('cupon-contenedor');
+    if (cuponCont) cuponCont.classList.remove('cupon-valido');
+
+    actualizarContadorCarrito();
+    mostrarToast('¡Pago confirmado exitosamente! 🎊');
+    mostrarPantalla('pantalla-catalogo');
+    renderizarProductos();
+    btn.innerHTML = '🔒 Confirmar pago';
+    btn.disabled = false;
+  }, 2000);
+}
+
+
+/* =============================================
+   8.1 PANTALLA DE PERFIL (datos, foto, historial)
+   GA6-220501096-AA3
+   ============================================= */
+
+const HISTORIAL_STORAGE_KEY = 'tecnonova_historial';
+
+/** (READ) Lee el historial completo (todos los usuarios) desde localStorage. */
+function leerHistorialCompleto() {
+  try {
+    const datos = localStorage.getItem(HISTORIAL_STORAGE_KEY);
+    return datos ? JSON.parse(datos) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** (CREATE) Agrega un pedido nuevo al historial del usuario con sesión activa. */
+function guardarPedidoEnHistorial(items, total, metodo, cupon) {
+  const usuario = obtenerUsuarioActual();
+  if (!usuario) return; // por seguridad, no debería pasar dentro del flujo de compra
+
+  const historial = leerHistorialCompleto();
+  const clave = usuario.correo.toLowerCase();
+  if (!historial[clave]) historial[clave] = [];
+
+  historial[clave].unshift({
+    id: Date.now(),
+    fecha: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' }),
+    items,
+    total,
+    metodo,
+    cupon
+  });
+
+  localStorage.setItem(HISTORIAL_STORAGE_KEY, JSON.stringify(historial));
+}
+
+/** Nombres legibles para cada método de pago. */
+const NOMBRES_METODO_PAGO = {
+  tarjeta: 'Tarjeta de crédito/débito',
+  pse: 'PSE',
+  contra: 'Pago contraentrega'
+};
+
+/**
+ * Genera las iniciales de un usuario a partir de su nombre y apellido.
+ * @param {Object} usuario
+ * @returns {string}
+ */
+function generarIniciales(usuario) {
+  const n = (usuario.nombres || '').trim().charAt(0);
+  const a = (usuario.apellidos || '').trim().charAt(0);
+  return (n + a).toUpperCase() || '🙂';
+}
+
+/**
+ * Dibuja/actualiza la pantalla de Perfil con los datos del usuario
+ * que tiene la sesión abierta: avatar, datos personales e historial.
+ */
+function renderPerfil() {
+  const usuario = obtenerUsuarioActual();
+  if (!usuario) {
+    // Si por alguna razón no hay sesión activa, regresar al login
+    mostrarPantalla('pantalla-login');
+    return;
+  }
+
+  // Encabezado con nombre y correo
+  document.getElementById('perfil-nombre-completo').textContent =
+    `${usuario.nombres} ${usuario.apellidos}`;
+  document.getElementById('perfil-correo-texto').textContent = usuario.correo;
+
+  // Avatar: si hay foto guardada se muestra la imagen, si no, las iniciales
+  const avatarEl = document.getElementById('perfil-avatar-img');
+  if (usuario.avatar) {
+    avatarEl.style.backgroundImage = `url('${usuario.avatar}')`;
+    avatarEl.style.backgroundSize = 'cover';
+    avatarEl.style.backgroundPosition = 'center';
+    avatarEl.textContent = '';
+  } else {
+    avatarEl.style.backgroundImage = 'none';
+    avatarEl.textContent = generarIniciales(usuario);
+  }
+
+  // Formulario de datos personales
+  document.getElementById('perfil-nombres').value       = usuario.nombres || '';
+  document.getElementById('perfil-apellidos').value     = usuario.apellidos || '';
+  document.getElementById('perfil-cedula').value        = usuario.cedula || '';
+  document.getElementById('perfil-fecha').value         = usuario.fecha || '';
+  document.getElementById('perfil-correo-input').value  = usuario.correo || '';
+
+  renderHistorialCompras(usuario.correo);
+}
+
+/**
+ * (UPDATE) Guarda los cambios del formulario de datos personales.
+ * Si el usuario es la cuenta demo, los cambios solo se mantienen
+ * mientras dure la sesión (no se persisten como cuenta nueva).
+ */
+function guardarDatosPerfil() {
+  const usuarioActual = obtenerUsuarioActual();
+  if (!usuarioActual) return;
+
+  const nombres    = document.getElementById('perfil-nombres').value;
+  const apellidos  = document.getElementById('perfil-apellidos').value;
+  const cedula     = document.getElementById('perfil-cedula').value;
+  const fecha      = document.getElementById('perfil-fecha').value;
+  const correo     = document.getElementById('perfil-correo-input').value;
+  let valido = true;
+
+  ['perfil-nombres','perfil-apellidos','perfil-cedula','perfil-fecha','perfil-correo-input'].forEach(limpiarError);
+
+  if (!validarNoVacio(nombres) || nombres.trim().length < 2) {
+    mostrarError('perfil-nombres', 'Escribe un nombre válido.');
+    valido = false;
+  }
+  if (!validarNoVacio(apellidos) || apellidos.trim().length < 2) {
+    mostrarError('perfil-apellidos', 'Escribe un apellido válido.');
+    valido = false;
+  }
+  if (!validarCedula(cedula)) {
+    mostrarError('perfil-cedula', 'Ingresa una cédula válida (solo dígitos, mínimo 6).');
+    valido = false;
+  }
+  if (!validarFecha(fecha)) {
+    mostrarError('perfil-fecha', 'Usa el formato dd/mm/aaaa.');
+    valido = false;
+  }
+  if (!validarEmail(correo)) {
+    mostrarError('perfil-correo-input', 'Escribe un correo electrónico válido.');
+    valido = false;
+  }
+
+  if (!valido) return;
+
+  const nuevoCorreo = correo.trim().toLowerCase();
+
+  // Si cambia el correo, verificar que no choque con otra cuenta existente
+  if (nuevoCorreo !== usuarioActual.correo.toLowerCase()) {
+    const yaExiste = buscarUsuarioPorCorreo(nuevoCorreo);
+    if (yaExiste) {
+      mostrarError('perfil-correo-input', 'Ese correo ya está en uso por otra cuenta.');
+      return;
+    }
+  }
+
+  const datosActualizados = {
+    ...usuarioActual,
+    nombres: nombres.trim(),
+    apellidos: apellidos.trim(),
+    cedula: cedula.trim(),
+    fecha: fecha.trim(),
+    correo: nuevoCorreo
+  };
+
+  if (usuarioActual.correo.toLowerCase() === USUARIO_DEMO.correo.toLowerCase()) {
+    // La cuenta demo se convierte en una cuenta registrada normal al editarla
+    const usuarios = leerUsuarios();
+    usuarios.push(datosActualizados);
+    guardarUsuarios(usuarios);
+  } else {
+    const usuarios = leerUsuarios();
+    const idx = usuarios.findIndex(u => u.correo.toLowerCase() === usuarioActual.correo.toLowerCase());
+    if (idx !== -1) usuarios[idx] = datosActualizados;
+    guardarUsuarios(usuarios);
+  }
+
+  iniciarSesion(nuevoCorreo);
+  mostrarToast('Datos actualizados correctamente ✅');
+  renderPerfil();
+}
+
+/**
+ * (UPDATE) Cambia la foto de perfil: lee el archivo elegido, lo convierte
+ * a una URL de datos (base64) y lo guarda junto con el usuario.
+ * @param {Event} e
+ */
+function cambiarFotoPerfil(e) {
+  const archivo = e.target.files && e.target.files[0];
+  if (!archivo) return;
+
+  if (!archivo.type.startsWith('image/')) {
+    mostrarToast('Selecciona un archivo de imagen válido.');
+    return;
+  }
+
+  const lector = new FileReader();
+  lector.onload = function (evento) {
+    const dataUrl = evento.target.result;
+    const usuarioActual = obtenerUsuarioActual();
+    if (!usuarioActual) return;
+
+    const datosActualizados = { ...usuarioActual, avatar: dataUrl };
+
+    if (usuarioActual.correo.toLowerCase() === USUARIO_DEMO.correo.toLowerCase()) {
+      const usuarios = leerUsuarios();
+      usuarios.push(datosActualizados);
+      guardarUsuarios(usuarios);
+      iniciarSesion(usuarioActual.correo);
+    } else {
+      const usuarios = leerUsuarios();
+      const idx = usuarios.findIndex(u => u.correo.toLowerCase() === usuarioActual.correo.toLowerCase());
+      if (idx !== -1) usuarios[idx] = datosActualizados;
+      guardarUsuarios(usuarios);
+    }
+
+    mostrarToast('Foto de perfil actualizada 📷');
+    renderPerfil();
+  };
+  lector.readAsDataURL(archivo);
+}
+
+/**
+ * Renderiza la lista de pedidos anteriores del usuario indicado.
+ * @param {string} correo
+ */
+function renderHistorialCompras(correo) {
+  const cont = document.getElementById('lista-historial');
+  if (!cont) return;
+
+  const historial = leerHistorialCompleto();
+  const pedidos = historial[correo.toLowerCase()] || [];
+
+  if (pedidos.length === 0) {
+    cont.innerHTML = `
+      <div class="historial-vacio">
+        <div style="font-size:36px; margin-bottom:8px;">🧾</div>
+        Aún no tienes compras registradas.<br>
+        ¡Explora el catálogo y realiza tu primer pedido!
+      </div>`;
+    return;
+  }
+
+  cont.innerHTML = pedidos.map(pedido => `
+    <div class="historial-pedido">
+      <div class="historial-pedido-cabecera">
+        <span class="historial-pedido-fecha">${pedido.fecha}</span>
+        <span class="historial-pedido-estado">Entregado</span>
+      </div>
+      <div class="historial-pedido-items">
+        ${pedido.items.map(it => `${it.cantidad}× ${it.nombre}`).join('<br>')}
+        <br><em>${NOMBRES_METODO_PAGO[pedido.metodo] || pedido.metodo}${pedido.cupon ? ' · Cupón ' + pedido.cupon : ''}</em>
+      </div>
+      <div class="historial-pedido-total">${formatPrecio(pedido.total)}</div>
+    </div>
+  `).join('');
+}
+
+/**
+ * Abre/cierra un acordeón de la pantalla de perfil.
+ * @param {string} id
+ */
+function alternarSeccionPerfil(id) {
+  const seccion = document.getElementById(id);
+  if (seccion) seccion.classList.toggle('abierta');
+}
+
+
+/* =============================================
+   9. BARRA DE BÚSQUEDA
+   ============================================= */
+
+/**
+ * Filtra productos en el catálogo según el texto buscado.
+ * @param {Event} e
+ */
+function buscarProducto(e) {
+  const texto = e.target.value.toLowerCase().trim();
+
+  if (!texto) {
+    renderizarProductos();
+    return;
+  }
+
+  const filtrados = PRODUCTOS.filter(p =>
+    p.nombre.toLowerCase().includes(texto) ||
+    p.specs.toLowerCase().includes(texto)
+  );
+
+  const grid = document.getElementById('grid-productos');
+  if (!grid) return;
+
+  if (filtrados.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1; text-align:center; padding:30px 0; color:var(--color-texto-secundario);">
+        <div style="font-size:40px;">🔍</div>
+        <p style="margin-top:8px;">Sin resultados para "${texto}"</p>
+      </div>`;
+  } else {
+    grid.innerHTML = filtrados.map(p => `
+      <div class="card-producto" onclick="abrirDetalle(${p.id})">
+        <div class="card-img">${obtenerIconoProducto(p)}</div>
+        <div class="card-nombre">${p.nombre}</div>
+        <div class="card-specs">${p.specs}</div>
+        <div class="card-precio">${formatPrecio(p.precio)}</div>
+        <button class="card-btn-mas" onclick="event.stopPropagation(); agregarAlCarrito(${p.id})" aria-label="Agregar">+</button>
+      </div>
+    `).join('');
+  }
+}
+
+
+/* =============================================
+   10. TOAST DE NOTIFICACIÓN
+   ============================================= */
+
+let toastTimer = null;
+
+/**
+ * Muestra un mensaje toast temporal.
+ * @param {string} mensaje
+ * @param {number} [duracion=2500] milisegundos
+ */
+function mostrarToast(mensaje, duracion) {
+  duracion = duracion || 2500;
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+
+  toast.textContent = mensaje;
+  toast.classList.add('visible');
+
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+  }, duracion);
+}
+
+
+/* =============================================
+   11. INICIALIZACIÓN AL CARGAR LA PÁGINA
+   ============================================= */
+
+document.addEventListener('DOMContentLoaded', function () {
+
+  // Si ya hay una sesión activa guardada, entrar directo al catálogo
+  // (evita tener que iniciar sesión cada vez que se abre la app)
+  const usuarioConSesion = obtenerUsuarioActual();
+  if (usuarioConSesion) {
+    mostrarPantalla('pantalla-catalogo');
+  } else {
+    mostrarPantalla('pantalla-login');
+  }
+
+  // Renderizar productos del catálogo
+  renderizarProductos();
+
+  // Listener del botón de login
+  const btnLogin = document.getElementById('btn-login');
+  if (btnLogin) btnLogin.addEventListener('click', manejarLogin);
+
+  // Enviar login con Enter
+  ['login-email', 'login-pass'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') manejarLogin();
+    });
+  });
+
+  // Listener del botón de guardar registro
+  const btnGuardar = document.getElementById('btn-guardar-registro');
+  if (btnGuardar) btnGuardar.addEventListener('click', manejarRegistro);
+
+  // Formatear fecha automáticamente
+  const campoFecha = document.getElementById('reg-fecha');
+  if (campoFecha) campoFecha.addEventListener('input', function() { formatearFecha(this); });
+
+  // Limpiar error de campo al escribir
+  document.querySelectorAll('.campo-input').forEach(input => {
+    input.addEventListener('input', function() {
+      limpiarError(this.id);
+    });
+  });
+
+  // Chips de categoría
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      filtrarCategoria(this.dataset.categoria);
+    });
+  });
+
+  // Búsqueda
+  const inputBusqueda = document.getElementById('input-busqueda');
+  if (inputBusqueda) inputBusqueda.addEventListener('input', buscarProducto);
+
+  // Botón añadir al carrito desde detalle
+  const btnAnadir = document.getElementById('btn-anadir-carrito');
+  if (btnAnadir) btnAnadir.addEventListener('click', anadirDesdeDetalle);
+
+  // Botones de cantidad en detalle
+  const btnMenos = document.getElementById('btn-cant-menos');
+  const btnMas   = document.getElementById('btn-cant-mas');
+  if (btnMenos) btnMenos.addEventListener('click', () => cambiarCantidad(-1));
+  if (btnMas)   btnMas.addEventListener('click',   () => cambiarCantidad(+1));
+
+  // Opciones de método de pago
+  document.querySelectorAll('.radio-opcion').forEach(opcion => {
+    opcion.addEventListener('click', function() {
+      const radio = this.querySelector('input[type="radio"]');
+      if (radio) seleccionarMetodoPago(radio.value);
+    });
+  });
+
+  // Confirmar pago
+  const btnPago = document.getElementById('btn-confirmar-pago');
+  if (btnPago) btnPago.addEventListener('click', confirmarPago);
+
+  // Aplicar cupón
+  const btnCupon = document.getElementById('btn-aplicar-cupon');
+  if (btnCupon) btnCupon.addEventListener('click', aplicarCupon);
+
+  // ---- Módulo de reseñas de clientes ----
+  // Selector de estrellas del formulario
+  document.querySelectorAll('#selector-estrellas .estrella-sel').forEach(estrella => {
+    estrella.addEventListener('click', function() {
+      seleccionarEstrellaFormulario(Number(this.dataset.valor));
+    });
+  });
+
+  // Botón publicar / guardar cambios de reseña
+  const btnGuardarResena = document.getElementById('btn-guardar-resena');
+  if (btnGuardarResena) btnGuardarResena.addEventListener('click', guardarResena);
+
+  // Botón cancelar edición de reseña
+  const btnCancelarResena = document.getElementById('btn-cancelar-edicion-resena');
+  if (btnCancelarResena) btnCancelarResena.addEventListener('click', resetearFormularioResena);
+
+  // Badge de carrito oculto al inicio
+  const badge = document.getElementById('carrito-badge');
+  if (badge) badge.style.display = 'none';
+
+  // ---- Módulo de Perfil ----
+  // Abrir/cerrar cada sección (acordeón)
+  document.querySelectorAll('.perfil-seccion-cabecera').forEach(cabecera => {
+    cabecera.addEventListener('click', function () {
+      alternarSeccionPerfil(this.dataset.toggle);
+    });
+  });
+
+  // Botón de la cámara abre el selector de archivos
+  const btnEditarAvatar = document.getElementById('perfil-avatar-editar');
+  const inputAvatar     = document.getElementById('perfil-avatar-input');
+  if (btnEditarAvatar && inputAvatar) {
+    btnEditarAvatar.addEventListener('click', () => inputAvatar.click());
+    inputAvatar.addEventListener('change', cambiarFotoPerfil);
+  }
+
+  // Guardar cambios de datos personales
+  const btnGuardarPerfil = document.getElementById('btn-guardar-perfil');
+  if (btnGuardarPerfil) btnGuardarPerfil.addEventListener('click', guardarDatosPerfil);
+
+  // Formatear fecha de nacimiento en el formulario del perfil
+  const campoFechaPerfil = document.getElementById('perfil-fecha');
+  if (campoFechaPerfil) campoFechaPerfil.addEventListener('input', function () { formatearFecha(this); });
+
+  // Cerrar sesión
+  const btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
+  if (btnCerrarSesion) btnCerrarSesion.addEventListener('click', cerrarSesion);
+
+  console.log('✅ Tecno Nova iniciado correctamente. GA6-220501096-AA3');
+});
