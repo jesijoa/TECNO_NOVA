@@ -16,3 +16,9 @@ Este repositorio documenta el flujo de trabajo con Git:
 - git push: envío de cambios al repositorio remoto
 - git pull: actualización del repositorio local desde el remoto
 
+# TECNO_NOVA - Nuevo 
+
+## Control de versiones
+Este repositorio evidencia el flujo de trabajo con Git:
+- git init, git add, git commit
+- git remote add, git push, git pull
