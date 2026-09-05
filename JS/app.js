@@ -183,16 +183,14 @@ function obtenerUsuarioActual() {
 /**
  * Maneja el envío del formulario de inicio de sesión.
  */
-function manejarLogin() {
+async function manejarLogin() {
   const email     = document.getElementById('login-email').value;
   const contrasena = document.getElementById('login-pass').value;
   let valido = true;
 
-  // Limpiar errores previos
   limpiarError('login-email');
   limpiarError('login-pass');
 
-  // Validar email
   if (!validarNoVacio(email)) {
     mostrarError('login-email', 'El correo electrónico es obligatorio.');
     valido = false;
@@ -201,7 +199,6 @@ function manejarLogin() {
     valido = false;
   }
 
-  // Validar contraseña
   if (!validarNoVacio(contrasena)) {
     mostrarError('login-pass', 'La contraseña es obligatoria.');
     valido = false;
@@ -212,27 +209,36 @@ function manejarLogin() {
 
   if (!valido) return;
 
-  // Simular carga
   const btn = document.getElementById('btn-login');
   btn.innerHTML = '<span class="spinner"></span> Verificando...';
   btn.disabled = true;
 
-  setTimeout(() => {
-    // Verificar credenciales contra la cuenta demo y contra los usuarios registrados
-    const usuario = buscarUsuarioPorCorreo(email);
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correo: email, contrasena: contrasena }),
+    });
 
-    if (usuario && usuario.contrasena === contrasena) {
-      iniciarSesion(usuario.correo);
+    const resultado = await respuesta.json();
+
+    if (respuesta.ok) {
+      localStorage.setItem('tecnoNovaToken', resultado.data.token);
+      localStorage.setItem('tecnoNovaCliente', JSON.stringify(resultado.data.cliente));
+
       mostrarPantalla('pantalla-catalogo');
-      mostrarToast(`¡Bienvenida, ${usuario.nombres}! 🎉`);
+      mostrarToast(`¡Bienvenida, ${resultado.data.cliente.nombre}! 🎉`);
       document.getElementById('login-email').value = '';
       document.getElementById('login-pass').value  = '';
     } else {
       mostrarPantalla('pantalla-error-auth');
     }
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor. Verifica que el backend esté corriendo.');
+  } finally {
     btn.innerHTML = 'Iniciar sesión';
     btn.disabled = false;
-  }, 1200);
+  }
 }
 
 
@@ -1691,8 +1697,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Si ya hay una sesión activa guardada, entrar directo al catálogo
   // (evita tener que iniciar sesión cada vez que se abre la app)
-  const usuarioConSesion = obtenerUsuarioActual();
-  if (usuarioConSesion) {
+  const tokenGuardado = localStorage.getItem('tecnoNovaToken');
+  if (tokenGuardado) {
     mostrarPantalla('pantalla-catalogo');
   } else {
     mostrarPantalla('pantalla-login');
