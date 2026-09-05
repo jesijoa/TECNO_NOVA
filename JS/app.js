@@ -376,7 +376,7 @@ function formatearFecha(input) {
    ============================================= */
 
 /** Datos de productos (simulados según los mockups del PDF) */
-const PRODUCTOS = [
+let PRODUCTOS = [
 
   /* ── PORTÁTILES ─────────────────────────────── */
   {
@@ -662,6 +662,48 @@ function formatPrecio(num) {
  */
 function generarEstrellas(n) {
   return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+
+/**
+ * Traduce el nombre real de la categoria (de la base de datos)
+ * a una de las 3 categorias que usa el filtro del frontend.
+ */
+function mapearCategoria(nombreCategoria) {
+  const n = (nombreCategoria || '').toLowerCase();
+  if (n.includes('portátil') || n.includes('portatil')) return 'portatiles';
+  if (n.includes('celular')) return 'celulares';
+  return 'accesorios';
+}
+
+/**
+ * Trae los productos reales desde el backend y los adapta
+ * al formato que usa el catalogo.
+ */
+async function cargarProductos() {
+  try {
+    const token = localStorage.getItem('tecnoNovaToken');
+    const respuesta = await fetch('http://localhost:3000/api/productos', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const resultado = await respuesta.json();
+
+    if (respuesta.ok) {
+      PRODUCTOS = resultado.data.map((p) => ({
+        id: p.id_producto,
+        nombre: p.nombre_producto,
+        specs: p.descripcion,
+        precio: Number(p.precio),
+        categoria: mapearCategoria(p.nombre_categoria),
+        estrellas: 5,
+        disponible: p.stock,
+        especificaciones: p.descripcion.split(',').map((s) => s.trim()),
+      }));
+    }
+  } catch (error) {
+    mostrarToast('No se pudieron cargar los productos. Verifica que el backend esté encendido.');
+  }
+
+  renderizarProductos();
 }
 
 /**
@@ -1353,6 +1395,7 @@ function confirmarPago() {
     actualizarContadorCarrito();
     mostrarToast('¡Pago confirmado exitosamente! 🎊');
     mostrarPantalla('pantalla-catalogo');
+    cargarProductos();
     renderizarProductos();
     btn.innerHTML = '🔒 Confirmar pago';
     btn.disabled = false;
@@ -1700,6 +1743,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const tokenGuardado = localStorage.getItem('tecnoNovaToken');
   if (tokenGuardado) {
     mostrarPantalla('pantalla-catalogo');
+    cargarProductos();
   } else {
     mostrarPantalla('pantalla-login');
   }
