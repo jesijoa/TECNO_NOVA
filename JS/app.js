@@ -704,6 +704,7 @@ async function cargarProductos() {
   }
 
   renderizarProductos();
+  await sincronizarCarrito();
 }
 
 /**
@@ -1131,20 +1132,62 @@ function renderizarResenas(productoId) {
  * @param {number} id
  * @param {number} [cantidad=1]
  */
-function agregarAlCarrito(id, cantidad) {
+
+
+/**
+ * Trae el carrito real desde el backend y actualiza
+ * el arreglo local `carrito` con esos datos.
+ */
+async function sincronizarCarrito() {
+  try {
+    const token = localStorage.getItem('tecnoNovaToken');
+    const respuesta = await fetch('http://localhost:3000/api/carrito', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const resultado = await respuesta.json();
+
+    if (respuesta.ok) {
+      carrito = resultado.items.map((item) => ({
+        idDetalle: item.id_detalle_carrito,
+        idProducto: item.id_producto,
+        nombre: item.nombre_producto,
+        precio: Number(item.precio_unitario),
+        cantidad: item.cantidad,
+        subtotal: Number(item.subtotal),
+      }));
+    }
+  } catch (error) {
+    mostrarToast('No se pudo sincronizar el carrito con el servidor.');
+  }
+  actualizarContadorCarrito();
+}
+
+async function agregarAlCarrito(id, cantidad) {
   cantidad = cantidad || 1;
   const producto = PRODUCTOS.find(p => p.id === id);
   if (!producto) return;
 
-  const item = carrito.find(c => c.id === id);
-  if (item) {
-    item.cantidad += cantidad;
-  } else {
-    carrito.push({ ...producto, cantidad });
-  }
+  const token = localStorage.getItem('tecnoNovaToken');
 
-  actualizarContadorCarrito();
-  mostrarToast(`${producto.nombre} añadido al carrito 🛒`);
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/carrito/items', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id_producto: id, cantidad }),
+    });
+
+    if (respuesta.ok) {
+      await sincronizarCarrito();
+      mostrarToast(`${producto.nombre} añadido al carrito 🛒`);
+    } else {
+      mostrarToast('No se pudo agregar el producto al carrito.');
+    }
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor.');
+  }
 }
 
 /**
@@ -1175,12 +1218,8 @@ function actualizarContadorCarrito() {
  * @returns {{subtotal:number, descuento:number, baseConDescuento:number, iva:number, total:number}}
  */
 function calcularTotalesCarrito() {
-  const subtotal = carrito.reduce((acc, c) => acc + c.precio * c.cantidad, 0);
-  const descuento = cuponAplicado ? Math.round(subtotal * cuponAplicado.porcentaje / 100) : 0;
-  const baseConDescuento = subtotal - descuento;
-  const iva   = Math.round(baseConDescuento * 0.19);
-  const total = baseConDescuento + iva;
-  return { subtotal, descuento, baseConDescuento, iva, total };
+  const subtotal = carrito.reduce((acc, c) => acc + c.subtotal, 0);
+  return { subtotal, descuento: 0, baseConDescuento: subtotal, iva: 0, total: subtotal };
 }
 
 /**
@@ -1200,22 +1239,22 @@ function renderizarCarrito() {
   } else {
     lista.innerHTML = carrito.map(item => `
       <div class="card-producto" style="flex-direction:row; align-items:center; gap:12px; margin-bottom:10px;">
-        <div class="card-img" style="width:52px; height:52px; min-width:52px;">${obtenerIconoProducto(item)}</div>
+        <div class="card-img" style="width:52px; height:52px; min-width:52px;">${obtenerIconoProducto({nombre: item.nombre})}</div>
         <div style="flex:1; min-width:0;">
           <div class="card-nombre">${item.nombre}</div>
-          <div class="card-specs">${item.specs}</div>
-          <div class="card-precio">${formatPrecio(item.precio * item.cantidad)}</div>
+          <div class="card-specs">Cantidad: ${item.cantidad}</div>
+          <div class="card-precio">${formatPrecio(item.subtotal)}</div>
         </div>
         <div class="cantidad-control">
-          <button class="cantidad-btn" onclick="cambiarCantidadCarrito(${item.id}, -1)" aria-label="Reducir cantidad">−</button>
+          <button class="cantidad-btn" onclick="cambiarCantidadCarrito(${item.idDetalle}, -1)" aria-label="Reducir cantidad">−</button>
           <span class="cantidad-valor">${item.cantidad}</span>
-          <button class="cantidad-btn" onclick="cambiarCantidadCarrito(${item.id}, 1)" aria-label="Aumentar cantidad">+</button>
+          <button class="cantidad-btn" onclick="cambiarCantidadCarrito(${item.idDetalle}, 1)" aria-label="Aumentar cantidad">+</button>
         </div>
       </div>
     `).join('');
   }
 
-  // Calcular totales (incluye el cupón, si está aplicado)
+  // Calcular totales
   const { subtotal, descuento, iva, total } = calcularTotalesCarrito();
 
   const elems = {
@@ -1230,17 +1269,9 @@ function renderizarCarrito() {
     if (el) el.textContent = val;
   });
 
-  // Fila de descuento: solo visible si hay un cupón válido aplicado
   const filaDescuento = document.getElementById('resumen-descuento-fila');
   if (filaDescuento) {
-    if (cuponAplicado) {
-      filaDescuento.style.display = 'flex';
-      document.getElementById('resumen-descuento-label').textContent =
-        `Descuento (${cuponAplicado.codigo} · ${cuponAplicado.porcentaje}%)`;
-      document.getElementById('resumen-descuento').textContent = '-' + formatPrecio(descuento);
-    } else {
-      filaDescuento.style.display = 'none';
-    }
+    filaDescuento.style.display = 'none';
   }
 }
 
@@ -1249,13 +1280,34 @@ function renderizarCarrito() {
  * @param {number} id
  * @param {number} delta
  */
-function cambiarCantidadCarrito(id, delta) {
-  const idx  = carrito.findIndex(c => c.id === id);
-  if (idx === -1) return;
-  carrito[idx].cantidad += delta;
-  if (carrito[idx].cantidad <= 0) carrito.splice(idx, 1);
-  actualizarContadorCarrito();
-  renderizarCarrito();
+async function cambiarCantidadCarrito(idDetalle, delta) {
+  const item = carrito.find(c => c.idDetalle === idDetalle);
+  if (!item) return;
+
+  const nuevaCantidad = item.cantidad + delta;
+  const token = localStorage.getItem('tecnoNovaToken');
+
+  try {
+    if (nuevaCantidad <= 0) {
+      await fetch(`http://localhost:3000/api/carrito/items/${idDetalle}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+    } else {
+      await fetch(`http://localhost:3000/api/carrito/items/${idDetalle}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ cantidad: nuevaCantidad }),
+      });
+    }
+    await sincronizarCarrito();
+    renderizarCarrito();
+  } catch (error) {
+    mostrarToast('No se pudo actualizar el carrito.');
+  }
 }
 
 /* =============================================
@@ -1371,37 +1423,55 @@ function seleccionarMetodoPago(metodo) {
  * Confirma el pago (simulado) y guarda el pedido en el
  * historial de compras del usuario que tiene la sesión abierta.
  */
-function confirmarPago() {
+async function confirmarPago() {
   const btn = document.getElementById('btn-confirmar-pago');
   btn.innerHTML = '<span class="spinner"></span> Procesando...';
   btn.disabled = true;
 
-  const { total } = calcularTotalesCarrito();
-  const copiaCarrito = carrito.map(c => ({ nombre: c.nombre, cantidad: c.cantidad, precio: c.precio }));
-  const cuponUsado = cuponAplicado ? cuponAplicado.codigo : null;
+  const token = localStorage.getItem('tecnoNovaToken');
 
-  setTimeout(() => {
-    guardarPedidoEnHistorial(copiaCarrito, total, metodoPago, cuponUsado);
+  try {
+    const respuestaCompra = await fetch('http://localhost:3000/api/carrito/confirmar-compra', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const resultadoCompra = await respuestaCompra.json();
 
-    carrito = [];
-    cuponAplicado = null;
-    const inputCupon = document.getElementById('input-cupon');
-    if (inputCupon) inputCupon.value = '';
-    const cuponMsg = document.getElementById('cupon-mensaje');
-    if (cuponMsg) cuponMsg.textContent = '';
-    const cuponCont = document.getElementById('cupon-contenedor');
-    if (cuponCont) cuponCont.classList.remove('cupon-valido');
+    if (!respuestaCompra.ok) {
+      mostrarToast(resultadoCompra.message || 'No se pudo confirmar la compra.');
+      btn.innerHTML = '🔒 Confirmar pago';
+      btn.disabled = false;
+      return;
+    }
 
-    actualizarContadorCarrito();
-    mostrarToast('¡Pago confirmado exitosamente! 🎊');
+    const idPedido = resultadoCompra.data.id_pedido;
+
+    const respuestaPago = await fetch('http://localhost:3000/api/pagos', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id_pedido: idPedido, metodo_pago: metodoPago }),
+    });
+    const resultadoPago = await respuestaPago.json();
+
+    if (respuestaPago.ok) {
+      mostrarToast('¡Pago confirmado exitosamente! 🎊');
+    } else {
+      mostrarToast('El pedido se creó, pero el pago no se pudo registrar.');
+    }
+
+    await sincronizarCarrito();
     mostrarPantalla('pantalla-catalogo');
-    cargarProductos();
-    renderizarProductos();
+    await cargarProductos();
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor.');
+  } finally {
     btn.innerHTML = '🔒 Confirmar pago';
     btn.disabled = false;
-  }, 2000);
+  }
 }
-
 
 /* =============================================
    8.1 PANTALLA DE PERFIL (datos, foto, historial)
