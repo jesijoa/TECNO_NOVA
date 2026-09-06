@@ -762,6 +762,41 @@
           </div>
         </div>
 
+        <!-- Sección: Servicio Técnico -->
+        <div class="perfil-seccion" id="perfil-seccion-servicio">
+          <div class="perfil-seccion-cabecera" data-toggle="perfil-seccion-servicio">
+            <div class="perfil-seccion-icono" aria-hidden="true">🛠️</div>
+            <div class="perfil-seccion-titulo">Servicio técnico</div>
+            <div class="perfil-seccion-flecha">▶</div>
+          </div>
+          <div class="perfil-seccion-cuerpo">
+
+            <p class="seccion-subtitulo" style="margin-top:0;">¿Tu producto presenta una falla? Radica una solicitud de garantía.</p>
+
+            <div class="campo-grupo">
+              <label class="campo-label" for="servicio-producto">Producto</label>
+              <select class="campo-input" id="servicio-producto"></select>
+            </div>
+
+            <div class="campo-grupo">
+              <label class="campo-label" for="servicio-descripcion">Describe el problema</label>
+              <textarea class="campo-input" id="servicio-descripcion" rows="3"
+                        placeholder="Ej: El equipo no enciende desde ayer..."
+                        aria-describedby="servicio-descripcion-error"></textarea>
+              <span class="campo-error-msg" id="servicio-descripcion-error" role="alert"></span>
+            </div>
+
+            <button class="btn-primario" type="button" id="btn-radicar-servicio" style="width:100%; margin-top:8px;">
+              Radicar solicitud
+            </button>
+
+            <div id="lista-servicio-tecnico" style="margin-top:16px;">
+              <!-- Renderizado dinámicamente por JS -->
+            </div>
+
+          </div>
+        </div>
+
         <!-- Cerrar sesión -->
         <button class="btn-cerrar-sesion" type="button" id="btn-cerrar-sesion">
           Cerrar sesión

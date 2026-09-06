@@ -301,6 +301,8 @@ async function renderPerfil() {
   } catch (error) {
     contenedorHistorial.innerHTML = '<p style="text-align:center; color:var(--color-error); font-size:13px;">Error de conexión con el servidor.</p>';
   }
+    cargarSelectProductosServicio();
+  renderizarMisSolicitudes();
 }
 
 
@@ -1631,6 +1633,114 @@ function alternarSeccionPerfil(id) {
   if (seccion) seccion.classList.toggle('abierta');
 }
 
+/* =============================================
+   8.2 SERVICIO TÉCNICO (garantías y soporte)
+   ============================================= */
+
+/**
+ * Llena el <select> de productos con el catálogo actual,
+ * para que el cliente elija sobre cuál producto radica la solicitud.
+ */
+function cargarSelectProductosServicio() {
+  const select = document.getElementById('servicio-producto');
+  if (!select) return;
+  select.innerHTML = PRODUCTOS.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+}
+
+/**
+ * (CREATE) Envía una solicitud nueva de servicio técnico al backend.
+ */
+async function radicarServicioTecnico() {
+  const idProducto  = document.getElementById('servicio-producto').value;
+  const descripcion = document.getElementById('servicio-descripcion').value;
+
+  limpiarError('servicio-descripcion');
+
+  if (!validarNoVacio(descripcion) || descripcion.trim().length < 10) {
+    mostrarError('servicio-descripcion', 'Describe el problema con al menos 10 caracteres.');
+    return;
+  }
+
+  const token = localStorage.getItem('tecnoNovaToken');
+  const btn = document.getElementById('btn-radicar-servicio');
+  btn.disabled = true;
+
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/servicio-tecnico', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id_producto: Number(idProducto),
+        descripcion: descripcion.trim(),
+      }),
+    });
+    const resultado = await respuesta.json();
+
+    if (respuesta.ok) {
+      mostrarToast('Solicitud radicada correctamente 🛠️');
+      document.getElementById('servicio-descripcion').value = '';
+      await renderizarMisSolicitudes();
+    } else {
+      mostrarToast(resultado.message || 'No se pudo radicar la solicitud.');
+    }
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/** Etiquetas legibles para cada estado de una solicitud. */
+const ESTADOS_SERVICIO_TECNICO = {
+  radicado: 'Radicado',
+  en_proceso: 'En proceso',
+  resuelto: 'Resuelto',
+};
+
+/**
+ * (READ) Trae las solicitudes de servicio técnico del cliente actual
+ * y las dibuja en pantalla.
+ */
+async function renderizarMisSolicitudes() {
+  const cont = document.getElementById('lista-servicio-tecnico');
+  if (!cont) return;
+
+  const token = localStorage.getItem('tecnoNovaToken');
+  cont.innerHTML = '<p style="font-size:13px; color:var(--color-texto-secundario);">Cargando tus solicitudes...</p>';
+
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/servicio-tecnico/mis-solicitudes', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const resultado = await respuesta.json();
+    const solicitudes = respuesta.ok ? resultado.data : [];
+
+    if (solicitudes.length === 0) {
+      cont.innerHTML = '<p style="font-size:13px; color:var(--color-texto-secundario);">No tienes solicitudes de servicio técnico.</p>';
+      return;
+    }
+
+    cont.innerHTML = solicitudes.map(s => {
+      const producto = PRODUCTOS.find(p => p.id === s.id_producto);
+      const fecha = new Date(s.fecha_solicitud).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+      return `
+        <div style="border:1px solid var(--color-borde, #e0e0e0); border-radius:var(--radio-md); padding:12px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:6px;">
+            <span>${producto ? producto.nombre : 'Producto #' + s.id_producto}</span>
+            <span style="text-transform:capitalize;">${ESTADOS_SERVICIO_TECNICO[s.estado] || s.estado}</span>
+          </div>
+          <div style="font-size:12px; color:var(--color-texto-secundario); margin-bottom:6px;">${fecha}</div>
+          <p style="font-size:13px; margin:0;">${s.descripcion}</p>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    cont.innerHTML = '<p style="font-size:13px; color:var(--color-error);">Error de conexión con el servidor.</p>';
+  }
+}
 
 /* =============================================
    9. BARRA DE BÚSQUEDA
@@ -1828,6 +1938,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // Formatear fecha de nacimiento en el formulario del perfil
   const campoFechaPerfil = document.getElementById('perfil-fecha');
   if (campoFechaPerfil) campoFechaPerfil.addEventListener('input', function () { formatearFecha(this); });
+
+  // Servicio técnico
+  const btnRadicarServicio = document.getElementById('btn-radicar-servicio');
+  if (btnRadicarServicio) btnRadicarServicio.addEventListener('click', radicarServicioTecnico);
 
   // Cerrar sesión
   const btnCerrarSesion = document.getElementById('btn-cerrar-sesion');
