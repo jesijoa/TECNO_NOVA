@@ -1,5 +1,5 @@
 /* ================================================
-   TECNO NOVA - Validaciones e interacciones JS
+TECNO NOVA - Validaciones e interacciones JS
    GA6-220501096-AA3 | SENA ADSO Ficha 3235887
    ================================================ */
 
@@ -890,64 +890,13 @@ function cambiarCantidad(delta) {
   actualizarPrecioBotonDetalle();
 }
 
-
 /* =============================================
-   6.5 RESEÑAS DE CLIENTES (CRUD con localStorage)
+   6.5 RESEÑAS DE CLIENTES (conectado a la API real)
    GA6-220501096-AA4-EV01
    ============================================= */
 
-/** Llave usada para guardar las reseñas en el almacenamiento local del navegador */
-const RESENAS_STORAGE_KEY = 'tecnonova_resenas';
-
 /** Guarda en qué estrella (1 a 5) está el usuario mientras llena el formulario */
 let estrellasSeleccionadas = 0;
-
-/**
- * (READ) Lee todas las reseñas guardadas en localStorage.
- * Si todavía no hay ninguna, devuelve un arreglo vacío.
- * @returns {Array}
- */
-function obtenerResenas() {
-  try {
-    const datos = localStorage.getItem(RESENAS_STORAGE_KEY);
-    return datos ? JSON.parse(datos) : [];
-  } catch (error) {
-    console.error('Error al leer las reseñas guardadas:', error);
-    return [];
-  }
-}
-
-/**
- * Guarda el arreglo completo de reseñas en localStorage.
- * @param {Array} resenas
- */
-function guardarResenasEnStorage(resenas) {
-  localStorage.setItem(RESENAS_STORAGE_KEY, JSON.stringify(resenas));
-}
-
-/**
- * (READ) Devuelve solo las reseñas de un producto específico,
- * ordenadas de la más reciente a la más antigua.
- * @param {number} productoId
- * @returns {Array}
- */
-function obtenerResenasDeProducto(productoId) {
-  return obtenerResenas()
-    .filter(r => r.productoId === productoId)
-    .sort((a, b) => b.fechaMs - a.fechaMs);
-}
-
-/**
- * Calcula el promedio de calificación de un producto según sus reseñas.
- * @param {number} productoId
- * @returns {number} Promedio redondeado a 1 decimal (0 si no tiene reseñas)
- */
-function calcularPromedioResenas(productoId) {
-  const resenas = obtenerResenasDeProducto(productoId);
-  if (resenas.length === 0) return 0;
-  const suma = resenas.reduce((acc, r) => acc + r.calificacion, 0);
-  return Math.round((suma / resenas.length) * 10) / 10;
-}
 
 /**
  * Actualiza visualmente cuántas estrellas quedan "encendidas" en el
@@ -965,28 +914,16 @@ function seleccionarEstrellaFormulario(valor) {
 
 /**
  * (VALIDACIÓN) Revisa que el formulario de reseña esté correctamente
- * diligenciado antes de guardar. Aplica las reglas de negocio del módulo.
+ * diligenciado antes de enviarlo al backend.
  * @returns {boolean} true si todo es válido
  */
 function validarFormularioResena() {
-  const nombre     = document.getElementById('resena-nombre').value;
   const comentario = document.getElementById('resena-comentario').value;
   let valido = true;
 
-  limpiarError('resena-nombre');
   limpiarError('resena-comentario');
   document.getElementById('resena-estrellas-error').classList.remove('visible');
 
-  // Regla: el nombre es obligatorio y debe tener mínimo 3 caracteres
-  if (!validarNoVacio(nombre)) {
-    mostrarError('resena-nombre', 'Escribe tu nombre para publicar la reseña.');
-    valido = false;
-  } else if (nombre.trim().length < 3) {
-    mostrarError('resena-nombre', 'El nombre debe tener al menos 3 caracteres.');
-    valido = false;
-  }
-
-  // Regla: se debe seleccionar una calificación de 1 a 5 estrellas
   if (estrellasSeleccionadas < 1) {
     const errEl = document.getElementById('resena-estrellas-error');
     errEl.textContent = 'Selecciona al menos 1 estrella.';
@@ -994,7 +931,6 @@ function validarFormularioResena() {
     valido = false;
   }
 
-  // Regla: el comentario es obligatorio, entre 10 y 300 caracteres
   if (!validarNoVacio(comentario)) {
     mostrarError('resena-comentario', 'Escribe un comentario sobre el producto.');
     valido = false;
@@ -1010,177 +946,171 @@ function validarFormularioResena() {
 }
 
 /**
- * (CREATE / UPDATE) Guarda una reseña nueva o actualiza una existente,
- * según si el formulario está en modo "editar" o no.
+ * (CREATE) Envía una reseña nueva al backend para el producto actual.
  */
-function guardarResena() {
+async function guardarResena() {
   if (!productoActual) return;
   if (!validarFormularioResena()) return;
 
-  const nombre     = document.getElementById('resena-nombre').value.trim();
-  const comentario = document.getElementById('resena-comentario').value.trim();
-  const idEditando = document.getElementById('resena-editando-id').value;
+  const contenido = document.getElementById('resena-comentario').value.trim();
+  const token = localStorage.getItem('tecnoNovaToken');
 
-  const resenas = obtenerResenas();
+  const btn = document.getElementById('btn-guardar-resena');
+  btn.disabled = true;
 
-  if (idEditando) {
-    // ---- UPDATE: actualizar una reseña ya existente ----
-    const idx = resenas.findIndex(r => r.id === idEditando);
-    if (idx !== -1) {
-      resenas[idx].nombre       = nombre;
-      resenas[idx].calificacion = estrellasSeleccionadas;
-      resenas[idx].comentario   = comentario;
-      resenas[idx].editado      = true;
-    }
-    guardarResenasEnStorage(resenas);
-    mostrarToast('¡Reseña actualizada! ✏️');
-  } else {
-    // Regla de negocio: evitar que la misma persona publique
-    // dos reseñas para el mismo producto (debe editar la existente).
-    const yaExiste = resenas.some(r =>
-      r.productoId === productoActual.id &&
-      r.nombre.toLowerCase() === nombre.toLowerCase()
-    );
-    if (yaExiste) {
-      mostrarError('resena-nombre', 'Ya escribiste una reseña para este producto. Puedes editarla abajo.');
-      return;
-    }
-
-    // ---- CREATE: crear una nueva reseña ----
-    resenas.push({
-      id: 'resena-' + Date.now(),
-      productoId: productoActual.id,
-      nombre: nombre,
-      calificacion: estrellasSeleccionadas,
-      comentario: comentario,
-      fechaMs: Date.now(),
-      editado: false
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/comentarios', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id_producto: productoActual.id,
+        calificacion: estrellasSeleccionadas,
+        contenido: contenido,
+      }),
     });
-    guardarResenasEnStorage(resenas);
-    mostrarToast('¡Gracias por tu reseña! 🎉');
+    const resultado = await respuesta.json();
+
+    if (respuesta.ok) {
+      mostrarToast('¡Gracias por tu reseña! 🎉');
+      resetearFormularioResena();
+      await renderizarResenas(productoActual.id);
+    } else {
+      mostrarToast(resultado.message || 'No se pudo publicar la reseña.');
+    }
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor.');
+  } finally {
+    btn.disabled = false;
   }
-
-  resetearFormularioResena();
-  renderizarResenas(productoActual.id);
 }
 
 /**
- * (UPDATE - paso 1) Carga los datos de una reseña existente en el
- * formulario para que el usuario pueda modificarla.
- * @param {string} id
+ * (DELETE) Elimina una reseña propia, previa confirmación del usuario.
+ * Solo funciona si el comentario pertenece al cliente que tiene la sesión activa.
+ * @param {number} id
  */
-function editarResena(id) {
-  const resena = obtenerResenas().find(r => r.id === id);
-  if (!resena) return;
-
-  document.getElementById('resena-editando-id').value = resena.id;
-  document.getElementById('resena-nombre').value = resena.nombre;
-  document.getElementById('resena-comentario').value = resena.comentario;
-  seleccionarEstrellaFormulario(resena.calificacion);
-
-  document.getElementById('btn-guardar-resena').textContent = 'Guardar cambios';
-  document.getElementById('btn-cancelar-edicion-resena').style.display = 'flex';
-
-  document.getElementById('form-resena').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-/**
- * (DELETE) Elimina una reseña, previa confirmación del usuario.
- * @param {string} id
- */
-function eliminarResena(id) {
+async function eliminarResena(id) {
   const confirmar = window.confirm('¿Seguro que deseas eliminar esta reseña? Esta acción no se puede deshacer.');
   if (!confirmar) return;
 
-  const resenas = obtenerResenas().filter(r => r.id !== id);
-  guardarResenasEnStorage(resenas);
-  mostrarToast('Reseña eliminada 🗑️');
+  const token = localStorage.getItem('tecnoNovaToken');
 
-  resetearFormularioResena();
-  if (productoActual) renderizarResenas(productoActual.id);
+  try {
+    const respuesta = await fetch(`http://localhost:3000/api/comentarios/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const resultado = await respuesta.json();
+
+    if (respuesta.ok) {
+      mostrarToast('Reseña eliminada 🗑️');
+      if (productoActual) await renderizarResenas(productoActual.id);
+    } else {
+      mostrarToast(resultado.message || 'No se pudo eliminar la reseña.');
+    }
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor.');
+  }
 }
 
 /**
- * Regresa el formulario de reseña a su estado inicial (modo "crear nueva").
+ * Regresa el formulario de reseña a su estado inicial.
  */
 function resetearFormularioResena() {
   document.getElementById('form-resena').reset();
-  document.getElementById('resena-editando-id').value = '';
-  document.getElementById('btn-guardar-resena').textContent = 'Publicar reseña';
-  document.getElementById('btn-cancelar-edicion-resena').style.display = 'none';
   seleccionarEstrellaFormulario(0);
-  ['resena-nombre', 'resena-comentario'].forEach(limpiarError);
+  limpiarError('resena-comentario');
   document.getElementById('resena-estrellas-error').classList.remove('visible');
 }
 
 /**
- * Convierte los milisegundos guardados en una fecha legible (dd/mm/aaaa).
- * @param {number} ms
+ * Convierte una fecha ISO del backend en una fecha legible (dd/mm/aaaa).
+ * @param {string} fechaIso
  * @returns {string}
  */
-function formatearFechaResena(ms) {
-  const f = new Date(ms);
+function formatearFechaResena(fechaIso) {
+  const f = new Date(fechaIso);
   const dd = String(f.getDate()).padStart(2, '0');
   const mm = String(f.getMonth() + 1).padStart(2, '0');
   return `${dd}/${mm}/${f.getFullYear()}`;
 }
 
 /**
- * (READ + actualización dinámica de la interfaz) Dibuja en pantalla el
- * resumen del promedio y la lista completa de reseñas de un producto.
+ * (READ) Trae las reseñas reales de un producto desde el backend
+ * y las dibuja en pantalla, junto con el resumen del promedio.
  * @param {number} productoId
  */
-function renderizarResenas(productoId) {
-  const resenas   = obtenerResenasDeProducto(productoId);
+async function renderizarResenas(productoId) {
   const resumenEl = document.getElementById('resenas-resumen');
   const listaEl   = document.getElementById('lista-resenas');
   if (!resumenEl || !listaEl) return;
 
-  // ---- Resumen del promedio ----
-  if (resenas.length === 0) {
-    resumenEl.innerHTML = `
-      <div class="resenas-vacio" style="width:100%;">
-        Este producto todavía no tiene reseñas. ¡Sé el primero en opinar!
-      </div>`;
-  } else {
-    const promedio = calcularPromedioResenas(productoId);
-    resumenEl.innerHTML = `
-      <div class="resenas-promedio-num">${promedio}</div>
-      <div class="resenas-promedio-detalle">
-        <span class="estrellas">${generarEstrellas(Math.round(promedio))}</span>
-        <span class="resenas-promedio-cantidad">
-          ${resenas.length} ${resenas.length === 1 ? 'reseña' : 'reseñas'}
-        </span>
-      </div>`;
-  }
+  const token = localStorage.getItem('tecnoNovaToken');
+  const clienteLocal = JSON.parse(localStorage.getItem('tecnoNovaCliente') || '{}');
 
-  // ---- Lista de reseñas ----
-  if (resenas.length === 0) {
-    listaEl.innerHTML = '';
-    return;
-  }
+  resumenEl.innerHTML = '<p style="font-size:13px; color:var(--color-texto-secundario);">Cargando reseñas...</p>';
+  listaEl.innerHTML = '';
 
-  listaEl.innerHTML = resenas.map(r => `
-    <div class="card-resena">
-      <div class="resena-header">
-        <div class="resena-autor-info">
-          <span class="resena-autor">${r.nombre}</span>
-          <span class="estrellas" style="font-size:13px;">${generarEstrellas(r.calificacion)}</span>
+  try {
+    const respuesta = await fetch(`http://localhost:3000/api/comentarios/producto/${productoId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      resumenEl.innerHTML = '<p style="font-size:13px; color:var(--color-error);">No se pudieron cargar las reseñas.</p>';
+      return;
+    }
+
+    const { promedio, total_comentarios, comentarios } = resultado;
+
+    if (total_comentarios === 0) {
+      resumenEl.innerHTML = `
+        <div class="resenas-vacio" style="width:100%;">
+          Este producto todavía no tiene reseñas. ¡Sé la primera en opinar!
+        </div>`;
+    } else {
+      resumenEl.innerHTML = `
+        <div class="resenas-promedio-num">${promedio}</div>
+        <div class="resenas-promedio-detalle">
+          <span class="estrellas">${generarEstrellas(Math.round(promedio))}</span>
+          <span class="resenas-promedio-cantidad">
+            ${total_comentarios} ${total_comentarios === 1 ? 'reseña' : 'reseñas'}
+          </span>
+        </div>`;
+    }
+
+    listaEl.innerHTML = comentarios.map(c => {
+      const esPropia = clienteLocal.id_cliente === c.id_cliente;
+      return `
+        <div class="card-resena">
+          <div class="resena-header">
+            <div class="resena-autor-info">
+              <span class="resena-autor">${c.nombre_cliente}</span>
+              <span class="estrellas" style="font-size:13px;">${generarEstrellas(c.calificacion)}</span>
+            </div>
+            <div class="resena-acciones">
+              <span class="resena-fecha">${formatearFechaResena(c.fecha_comentario)}</span>
+              ${esPropia ? `
+                <button class="btn-icono-resena eliminar" title="Eliminar reseña"
+                        aria-label="Eliminar tu reseña"
+                        onclick="eliminarResena(${c.id_comentario})">🗑️</button>
+              ` : ''}
+            </div>
+          </div>
+          <p class="resena-comentario">${c.contenido}</p>
         </div>
-        <div class="resena-acciones">
-          <span class="resena-fecha">${formatearFechaResena(r.fechaMs)}${r.editado ? ' · editada' : ''}</span>
-          <button class="btn-icono-resena editar" title="Editar reseña"
-                  aria-label="Editar reseña de ${r.nombre}"
-                  onclick="editarResena('${r.id}')">✏️</button>
-          <button class="btn-icono-resena eliminar" title="Eliminar reseña"
-                  aria-label="Eliminar reseña de ${r.nombre}"
-                  onclick="eliminarResena('${r.id}')">🗑️</button>
-        </div>
-      </div>
-      <p class="resena-comentario">${r.comentario}</p>
-    </div>
-  `).join('');
+      `;
+    }).join('');
+
+  } catch (error) {
+    resumenEl.innerHTML = '<p style="font-size:13px; color:var(--color-error);">Error de conexión con el servidor.</p>';
+  }
 }
+
 
 
 /* =============================================
