@@ -242,6 +242,67 @@ async function manejarLogin() {
   }
 }
 
+async function renderPerfil() {
+  const clienteLocal = JSON.parse(localStorage.getItem('tecnoNovaCliente') || '{}');
+
+  // Rellenar datos básicos del encabezado (usando lo que ya está en localStorage)
+  document.getElementById('perfil-nombre-completo').textContent = clienteLocal.nombre || 'Sin nombre';
+  document.getElementById('perfil-correo-texto').textContent = clienteLocal.correo || '';
+
+  const contenedorHistorial = document.getElementById('lista-historial');
+  contenedorHistorial.innerHTML = '<p style="text-align:center; color:var(--color-texto-secundario); font-size:13px;">Cargando historial...</p>';
+
+  try {
+    const token = localStorage.getItem('tecnoNovaToken');
+    const id_cliente = clienteLocal.id_cliente;
+
+    const respuesta = await fetch(`http://localhost:3000/api/pedidos/cliente/${id_cliente}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const pedidos = await respuesta.json();
+
+    if (!respuesta.ok) {
+      contenedorHistorial.innerHTML = '<p style="text-align:center; color:var(--color-error); font-size:13px;">No se pudo cargar el historial.</p>';
+      return;
+    }
+
+    if (pedidos.length === 0) {
+      contenedorHistorial.innerHTML = '<p style="text-align:center; color:var(--color-texto-secundario); font-size:13px;">Todavía no tienes compras registradas.</p>';
+      return;
+    }
+
+    contenedorHistorial.innerHTML = pedidos.map((pedido) => {
+      const fecha = new Date(pedido.fecha_pedido).toLocaleDateString('es-CO', {
+        year: 'numeric', month: 'long', day: 'numeric',
+      });
+      const itemsHtml = pedido.detalle.map((item) => `
+        <div style="display:flex; justify-content:space-between; font-size:13px; padding:4px 0;">
+          <span>${item.nombre_producto} × ${item.cantidad}</span>
+          <span>$${Number(item.subtotal).toLocaleString('es-CO')}</span>
+        </div>
+      `).join('');
+
+      return `
+        <div style="border:1px solid var(--color-borde, #e0e0e0); border-radius:var(--radio-md); padding:12px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:6px;">
+            <span>Pedido #${pedido.id_pedido}</span>
+            <span style="text-transform:capitalize;">${pedido.estado}</span>
+          </div>
+          <div style="font-size:12px; color:var(--color-texto-secundario); margin-bottom:8px;">${fecha}</div>
+          ${itemsHtml}
+          <div style="display:flex; justify-content:space-between; font-weight:bold; margin-top:8px; border-top:1px dashed #ccc; padding-top:6px;">
+            <span>Total</span>
+            <span>$${Number(pedido.total).toLocaleString('es-CO')}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (error) {
+    contenedorHistorial.innerHTML = '<p style="text-align:center; color:var(--color-error); font-size:13px;">Error de conexión con el servidor.</p>';
+  }
+}
+
 
 /* =============================================
    4. FORMULARIO DE REGISTRO
