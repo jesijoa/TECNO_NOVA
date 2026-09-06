@@ -166,7 +166,8 @@ function iniciarSesion(correo) {
 
 /** Cierra la sesión activa. */
 function cerrarSesion() {
-  localStorage.removeItem(SESION_STORAGE_KEY);
+  localStorage.removeItem('tecnoNovaToken');
+  localStorage.removeItem('tecnoNovaCliente');
   carrito = [];
   actualizarContadorCarrito();
   mostrarPantalla('pantalla-login');
@@ -249,7 +250,7 @@ async function manejarLogin() {
 /**
  * Maneja el envío del formulario de registro de datos personales.
  */
-function manejarRegistro() {
+async function manejarRegistro() {
   const nombres    = document.getElementById('reg-nombres').value;
   const apellidos  = document.getElementById('reg-apellidos').value;
   const cedula     = document.getElementById('reg-cedula').value;
@@ -259,7 +260,6 @@ function manejarRegistro() {
   const confirmar  = document.getElementById('reg-confirmar').value;
   let valido = true;
 
-  // Limpiar errores
   ['reg-nombres','reg-apellidos','reg-cedula','reg-fecha','reg-correo','reg-contrasena','reg-confirmar']
     .forEach(limpiarError);
 
@@ -295,19 +295,14 @@ function manejarRegistro() {
     valido = false;
   }
 
-  // Validar correo (obligatorio, formato válido y no repetido)
   if (!validarNoVacio(correo)) {
     mostrarError('reg-correo', 'El correo electrónico es obligatorio.');
     valido = false;
   } else if (!validarEmail(correo)) {
     mostrarError('reg-correo', 'Escribe un correo electrónico válido.');
     valido = false;
-  } else if (buscarUsuarioPorCorreo(correo)) {
-    mostrarError('reg-correo', 'Ya existe una cuenta registrada con este correo.');
-    valido = false;
   }
 
-  // Validar contraseña
   if (!validarNoVacio(contrasena)) {
     mostrarError('reg-contrasena', 'La contraseña es obligatoria.');
     valido = false;
@@ -316,7 +311,6 @@ function manejarRegistro() {
     valido = false;
   }
 
-  // Validar confirmación de contraseña
   if (!validarNoVacio(confirmar)) {
     mostrarError('reg-confirmar', 'Debes confirmar tu contraseña.');
     valido = false;
@@ -327,36 +321,41 @@ function manejarRegistro() {
 
   if (!valido) return;
 
-  // Guardar exitosamente
   const btn = document.getElementById('btn-guardar-registro');
   btn.innerHTML = '<span class="spinner"></span> Guardando...';
   btn.disabled = true;
 
-  setTimeout(() => {
-    // CREATE: agrega el nuevo usuario al almacenamiento local
-    const usuarios = leerUsuarios();
-    usuarios.push({
-      nombres: nombres.trim(),
-      apellidos: apellidos.trim(),
-      cedula: cedula.trim(),
-      fecha: fecha.trim(),
-      correo: correo.trim().toLowerCase(),
-      contrasena: contrasena,
-      avatar: null
-    });
-    guardarUsuarios(usuarios);
+  const nombreCompleto = `${nombres.trim()} ${apellidos.trim()}`;
+  const correoLimpio   = correo.trim().toLowerCase();
+  const usuarioGenerado = correoLimpio.split('@')[0];
 
-    mostrarToast('¡Cuenta creada correctamente! Ahora inicia sesión ✅');
-    mostrarPantalla('pantalla-login');
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/clientes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        usuario: usuarioGenerado,
+        contrasena: contrasena,
+        nombre: nombreCompleto,
+        correo: correoLimpio,
+      }),
+    });
+    const resultado = await respuesta.json();
+
+    if (respuesta.ok) {
+      mostrarToast('¡Cuenta creada correctamente! Ahora inicia sesión ✅');
+      mostrarPantalla('pantalla-login');
+      document.getElementById('login-email').value = correoLimpio;
+      document.getElementById('form-registro').reset();
+    } else {
+      mostrarError('reg-correo', resultado.message || 'No se pudo crear la cuenta.');
+    }
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor.');
+  } finally {
     btn.innerHTML = 'Guardar';
     btn.disabled = false;
-
-    // Precargar el correo en el login para comodidad de la persona
-    document.getElementById('login-email').value = correo.trim().toLowerCase();
-
-    // Limpiar formulario
-    document.getElementById('form-registro').reset();
-  }, 1000);
+  }
 }
 
 /**
@@ -1533,193 +1532,103 @@ function generarIniciales(usuario) {
  * Dibuja/actualiza la pantalla de Perfil con los datos del usuario
  * que tiene la sesión abierta: avatar, datos personales e historial.
  */
-function renderPerfil() {
-  const usuario = obtenerUsuarioActual();
-  if (!usuario) {
-    // Si por alguna razón no hay sesión activa, regresar al login
-    mostrarPantalla('pantalla-login');
-    return;
-  }
+async function guardarDatosPerfil() {
+  const clienteLocal = JSON.parse(localStorage.getItem('tecnoNovaCliente') || 'null');
+  if (!clienteLocal) return;
 
-  // Encabezado con nombre y correo
-  document.getElementById('perfil-nombre-completo').textContent =
-    `${usuario.nombres} ${usuario.apellidos}`;
-  document.getElementById('perfil-correo-texto').textContent = usuario.correo;
-
-  // Avatar: si hay foto guardada se muestra la imagen, si no, las iniciales
-  const avatarEl = document.getElementById('perfil-avatar-img');
-  if (usuario.avatar) {
-    avatarEl.style.backgroundImage = `url('${usuario.avatar}')`;
-    avatarEl.style.backgroundSize = 'cover';
-    avatarEl.style.backgroundPosition = 'center';
-    avatarEl.textContent = '';
-  } else {
-    avatarEl.style.backgroundImage = 'none';
-    avatarEl.textContent = generarIniciales(usuario);
-  }
-
-  // Formulario de datos personales
-  document.getElementById('perfil-nombres').value       = usuario.nombres || '';
-  document.getElementById('perfil-apellidos').value     = usuario.apellidos || '';
-  document.getElementById('perfil-cedula').value        = usuario.cedula || '';
-  document.getElementById('perfil-fecha').value         = usuario.fecha || '';
-  document.getElementById('perfil-correo-input').value  = usuario.correo || '';
-
-  renderHistorialCompras(usuario.correo);
-}
-
-/**
- * (UPDATE) Guarda los cambios del formulario de datos personales.
- * Si el usuario es la cuenta demo, los cambios solo se mantienen
- * mientras dure la sesión (no se persisten como cuenta nueva).
- */
-function guardarDatosPerfil() {
-  const usuarioActual = obtenerUsuarioActual();
-  if (!usuarioActual) return;
-
-  const nombres    = document.getElementById('perfil-nombres').value;
-  const apellidos  = document.getElementById('perfil-apellidos').value;
-  const cedula     = document.getElementById('perfil-cedula').value;
-  const fecha      = document.getElementById('perfil-fecha').value;
-  const correo     = document.getElementById('perfil-correo-input').value;
+  const nombre = document.getElementById('perfil-nombres').value;
+  const correo = document.getElementById('perfil-correo-input').value;
   let valido = true;
 
-  ['perfil-nombres','perfil-apellidos','perfil-cedula','perfil-fecha','perfil-correo-input'].forEach(limpiarError);
+  ['perfil-nombres','perfil-correo-input'].forEach(limpiarError);
 
-  if (!validarNoVacio(nombres) || nombres.trim().length < 2) {
+  if (!validarNoVacio(nombre) || nombre.trim().length < 2) {
     mostrarError('perfil-nombres', 'Escribe un nombre válido.');
-    valido = false;
-  }
-  if (!validarNoVacio(apellidos) || apellidos.trim().length < 2) {
-    mostrarError('perfil-apellidos', 'Escribe un apellido válido.');
-    valido = false;
-  }
-  if (!validarCedula(cedula)) {
-    mostrarError('perfil-cedula', 'Ingresa una cédula válida (solo dígitos, mínimo 6).');
-    valido = false;
-  }
-  if (!validarFecha(fecha)) {
-    mostrarError('perfil-fecha', 'Usa el formato dd/mm/aaaa.');
     valido = false;
   }
   if (!validarEmail(correo)) {
     mostrarError('perfil-correo-input', 'Escribe un correo electrónico válido.');
     valido = false;
   }
-
   if (!valido) return;
 
-  const nuevoCorreo = correo.trim().toLowerCase();
+  const token = localStorage.getItem('tecnoNovaToken');
 
-  // Si cambia el correo, verificar que no choque con otra cuenta existente
-  if (nuevoCorreo !== usuarioActual.correo.toLowerCase()) {
-    const yaExiste = buscarUsuarioPorCorreo(nuevoCorreo);
-    if (yaExiste) {
-      mostrarError('perfil-correo-input', 'Ese correo ya está en uso por otra cuenta.');
-      return;
-    }
-  }
+  try {
+    const respuesta = await fetch(`http://localhost:3000/api/clientes/${clienteLocal.id_cliente}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ nombre: nombre.trim(), correo: correo.trim().toLowerCase() }),
+    });
+    const resultado = await respuesta.json();
 
-  const datosActualizados = {
-    ...usuarioActual,
-    nombres: nombres.trim(),
-    apellidos: apellidos.trim(),
-    cedula: cedula.trim(),
-    fecha: fecha.trim(),
-    correo: nuevoCorreo
-  };
-
-  if (usuarioActual.correo.toLowerCase() === USUARIO_DEMO.correo.toLowerCase()) {
-    // La cuenta demo se convierte en una cuenta registrada normal al editarla
-    const usuarios = leerUsuarios();
-    usuarios.push(datosActualizados);
-    guardarUsuarios(usuarios);
-  } else {
-    const usuarios = leerUsuarios();
-    const idx = usuarios.findIndex(u => u.correo.toLowerCase() === usuarioActual.correo.toLowerCase());
-    if (idx !== -1) usuarios[idx] = datosActualizados;
-    guardarUsuarios(usuarios);
-  }
-
-  iniciarSesion(nuevoCorreo);
-  mostrarToast('Datos actualizados correctamente ✅');
-  renderPerfil();
-}
-
-/**
- * (UPDATE) Cambia la foto de perfil: lee el archivo elegido, lo convierte
- * a una URL de datos (base64) y lo guarda junto con el usuario.
- * @param {Event} e
- */
-function cambiarFotoPerfil(e) {
-  const archivo = e.target.files && e.target.files[0];
-  if (!archivo) return;
-
-  if (!archivo.type.startsWith('image/')) {
-    mostrarToast('Selecciona un archivo de imagen válido.');
-    return;
-  }
-
-  const lector = new FileReader();
-  lector.onload = function (evento) {
-    const dataUrl = evento.target.result;
-    const usuarioActual = obtenerUsuarioActual();
-    if (!usuarioActual) return;
-
-    const datosActualizados = { ...usuarioActual, avatar: dataUrl };
-
-    if (usuarioActual.correo.toLowerCase() === USUARIO_DEMO.correo.toLowerCase()) {
-      const usuarios = leerUsuarios();
-      usuarios.push(datosActualizados);
-      guardarUsuarios(usuarios);
-      iniciarSesion(usuarioActual.correo);
+    if (respuesta.ok) {
+      localStorage.setItem('tecnoNovaCliente', JSON.stringify({ ...clienteLocal, nombre: nombre.trim(), correo: correo.trim().toLowerCase() }));
+      mostrarToast('Datos actualizados correctamente ✅');
+      renderPerfil();
     } else {
-      const usuarios = leerUsuarios();
-      const idx = usuarios.findIndex(u => u.correo.toLowerCase() === usuarioActual.correo.toLowerCase());
-      if (idx !== -1) usuarios[idx] = datosActualizados;
-      guardarUsuarios(usuarios);
+      mostrarToast(resultado.message || 'No se pudieron actualizar los datos.');
     }
-
-    mostrarToast('Foto de perfil actualizada 📷');
-    renderPerfil();
-  };
-  lector.readAsDataURL(archivo);
+  } catch (error) {
+    mostrarToast('No se pudo conectar con el servidor.');
+  }
 }
 
-/**
- * Renderiza la lista de pedidos anteriores del usuario indicado.
- * @param {string} correo
- */
-function renderHistorialCompras(correo) {
+function cambiarFotoPerfil(e) {
+  mostrarToast('La foto de perfil aún no está disponible en esta versión.');
+}
+
+async function renderHistorialCompras() {
   const cont = document.getElementById('lista-historial');
   if (!cont) return;
 
-  const historial = leerHistorialCompleto();
-  const pedidos = historial[correo.toLowerCase()] || [];
+  const clienteLocal = JSON.parse(localStorage.getItem('tecnoNovaCliente') || 'null');
+  const token = localStorage.getItem('tecnoNovaToken');
+  if (!clienteLocal) return;
 
-  if (pedidos.length === 0) {
-    cont.innerHTML = `
-      <div class="historial-vacio">
-        <div style="font-size:36px; margin-bottom:8px;">🧾</div>
-        Aún no tienes compras registradas.<br>
-        ¡Explora el catálogo y realiza tu primer pedido!
-      </div>`;
-    return;
+  try {
+    const respuesta = await fetch(`http://localhost:3000/api/pedidos/cliente/${clienteLocal.id_cliente}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const resultado = await respuesta.json();
+    const pedidos = respuesta.ok ? resultado.data : [];
+
+    if (pedidos.length === 0) {
+      cont.innerHTML = `
+        <div class="historial-vacio">
+          <div style="font-size:36px; margin-bottom:8px;">🧾</div>
+          Aún no tienes compras registradas.<br>
+          ¡Explora el catálogo y realiza tu primer pedido!
+        </div>`;
+      return;
+    }
+
+    const pedidosConDetalle = await Promise.all(pedidos.map(async (p) => {
+      const detResp = await fetch(`http://localhost:3000/api/pedidos/${p.id_pedido}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const detResult = await detResp.json();
+      return { ...p, items: (detResult.data && detResult.data.detalle) || [] };
+    }));
+
+    cont.innerHTML = pedidosConDetalle.map(pedido => `
+      <div class="historial-pedido">
+        <div class="historial-pedido-cabecera">
+          <span class="historial-pedido-fecha">${new Date(pedido.fecha_pedido).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+          <span class="historial-pedido-estado">${pedido.estado}</span>
+        </div>
+        <div class="historial-pedido-items">
+          ${pedido.items.map(it => `${it.cantidad}× ${it.nombre_producto}`).join('<br>')}
+        </div>
+        <div class="historial-pedido-total">${formatPrecio(pedido.total)}</div>
+      </div>
+    `).join('');
+  } catch (error) {
+    cont.innerHTML = '<div class="historial-vacio">No se pudo cargar el historial.</div>';
   }
-
-  cont.innerHTML = pedidos.map(pedido => `
-    <div class="historial-pedido">
-      <div class="historial-pedido-cabecera">
-        <span class="historial-pedido-fecha">${pedido.fecha}</span>
-        <span class="historial-pedido-estado">Entregado</span>
-      </div>
-      <div class="historial-pedido-items">
-        ${pedido.items.map(it => `${it.cantidad}× ${it.nombre}`).join('<br>')}
-        <br><em>${NOMBRES_METODO_PAGO[pedido.metodo] || pedido.metodo}${pedido.cupon ? ' · Cupón ' + pedido.cupon : ''}</em>
-      </div>
-      <div class="historial-pedido-total">${formatPrecio(pedido.total)}</div>
-    </div>
-  `).join('');
 }
 
 /**
