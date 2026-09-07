@@ -697,15 +697,39 @@ const ICONOS_SVG = {
  * @param {Object} p - producto
  * @returns {string} - markup SVG listo para insertar
  */
-function obtenerIconoProducto(p) {
+function generarSlugProducto(nombre) {
+  return (nombre || 'producto')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/"/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function determinarTipoIcono(p) {
   const nombre = (p.nombre || '').toLowerCase();
-  if (nombre.includes('audíf') || nombre.includes('audif')) return ICONOS_SVG.audifonos;
-  if (nombre.includes('monitor'))                            return ICONOS_SVG.monitor;
-  if (nombre.includes('mouse'))                               return ICONOS_SVG.mouse;
-  if (nombre.includes('teclado'))                             return ICONOS_SVG.teclado;
-  if (p.categoria === 'portatiles')                           return ICONOS_SVG.laptop;
-  if (p.categoria === 'celulares')                             return ICONOS_SVG.celular;
-  return ICONOS_SVG.laptop;
+  if (nombre.includes('audíf') || nombre.includes('audif')) return 'audifonos';
+  if (nombre.includes('monitor'))                            return 'monitor';
+  if (nombre.includes('mouse'))                               return 'mouse';
+  if (nombre.includes('teclado'))                             return 'teclado';
+  if (p.categoria === 'portatiles')                           return 'laptop';
+  if (p.categoria === 'celulares')                             return 'celular';
+  return 'laptop';
+}
+
+function reemplazarImagenRota(img) {
+  const tipo = img.dataset.fallbackTipo || 'laptop';
+  const contenedor = img.parentElement;
+  if (contenedor) contenedor.innerHTML = ICONOS_SVG[tipo] || ICONOS_SVG.laptop;
+}
+
+function obtenerIconoProducto(p) {
+  const slug = generarSlugProducto(p.nombre);
+  const tipo = determinarTipoIcono(p);
+  const nombreSeguro = (p.nombre || 'Producto').replace(/"/g, '&quot;');
+
+  return `<img src="Imagenes/${slug}.jpg" alt="${nombreSeguro}"
+              data-fallback-tipo="${tipo}" onerror="reemplazarImagenRota(this)">`;
 }
 
 /**
@@ -1828,8 +1852,7 @@ document.addEventListener('DOMContentLoaded', function () {
     mostrarPantalla('pantalla-login');
   }
 
-  // Renderizar productos del catálogo
-  renderizarProductos();
+
 
   // Listener del botón de login
   const btnLogin = document.getElementById('btn-login');

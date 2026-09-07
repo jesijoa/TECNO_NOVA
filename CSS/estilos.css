@@ -412,6 +412,7 @@ body {
   transition: box-shadow var(--transicion), transform var(--transicion);
   cursor: pointer;
   min-height: 0;
+  overflow: hidden;
 }
 
 .card-producto:hover {
@@ -437,6 +438,15 @@ body {
 .card-img svg {
   width: 60%;
   height: 60%;
+  object-fit: cover;
+  border-radius: var(--radio-sm);
+}
+
+.card-img img {
+     width: 100%;
+     height: 100%;
+     object-fit: cover;
+     border-radius: var(--radio-sm);
 }
 
 .card-nombre {
@@ -496,6 +506,7 @@ body {
   gap: var(--espacio-sm);
   margin-top: var(--espacio-md);
   padding-bottom: 34px; /* espacio para el botón "+" que sobresale */
+  grid-auto-rows: 1fr;
 }
 
 /* ---------- Barra de búsqueda ---------- */
@@ -1043,9 +1054,11 @@ body {
 }
 
 /* ---------- Ícono grande en pantalla de detalle ---------- */
-#det-emoji svg {
-  width: 130px;
-  height: 130px;
+#det-emoji img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: var(--radio-md);
 }
 
 /* ---------- Spinner de carga ---------- */
